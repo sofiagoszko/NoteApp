@@ -1,6 +1,6 @@
 package com.hirelens.noteapp.models;
 
-import java.sql.Date;
+import java.util.Date;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
