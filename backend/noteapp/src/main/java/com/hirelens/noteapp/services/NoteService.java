@@ -8,7 +8,8 @@ import org.apache.coyote.BadRequestException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.hirelens.noteapp.dto.NoteDTO;
+import com.hirelens.noteapp.dto.NoteDTOEdit;
+import com.hirelens.noteapp.dto.NoteDTONew;
 import com.hirelens.noteapp.models.Note;
 import com.hirelens.noteapp.models.User;
 import com.hirelens.noteapp.repositories.NoteRepository;
@@ -18,7 +19,7 @@ public class NoteService {
     @Autowired
     private NoteRepository noteRepository;
 
-    public Note createNote(NoteDTO noteDTO, User user) {
+    public Note createNote(NoteDTONew noteDTO, User user) {
         Note note = new Note();
         note.setTitle(noteDTO.getTitle());
         note.setContent(noteDTO.getContent());
@@ -29,7 +30,7 @@ public class NoteService {
         return noteRepository.save(note);
     }
 
-    public void editNote(Long id, NoteDTO noteDTO) throws BadRequestException {
+    public void editNote(Long id, NoteDTOEdit noteDTO) throws BadRequestException {
         Note existingNote = noteRepository.findById(id)
                 .orElseThrow(() -> new BadRequestException("Nota no encontrada"));
 
