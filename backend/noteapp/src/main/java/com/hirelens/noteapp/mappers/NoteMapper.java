@@ -1,12 +1,12 @@
 package com.hirelens.noteapp.mappers;
 
+import org.springframework.stereotype.Component;
+
 import com.hirelens.noteapp.dto.NoteDTO;
 import com.hirelens.noteapp.models.Note;
 
+@Component
 public class NoteMapper {
-
-    public NoteMapper() {
-    }   
 
     public NoteDTO toDTO(Note note) {
         if (note == null) {
@@ -29,8 +29,6 @@ public class NoteMapper {
         Note note = new Note();
         note.setTitle(noteDTO.getTitle());
         note.setContent(noteDTO.getContent());
-        note.setCreatedAt(noteDTO.getCreatedAt());
-        note.setUpdatedAt(noteDTO.getUpdatedAt());
         note.setActive(noteDTO.isActive());
 
         return note;

@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import com.hirelens.noteapp.models.Note;
 import com.hirelens.noteapp.models.User;
 import com.hirelens.noteapp.dto.UserDTO;
+import com.hirelens.noteapp.enums.Role;
 import com.hirelens.noteapp.repositories.NoteRepository;
 import com.hirelens.noteapp.repositories.UserRepository;
 
@@ -57,6 +58,7 @@ public class UserService {
         user.setNickname(userDTO.getNickname());
         user.setEmail(userDTO.getEmail());
         user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
+        user.setRole(Role.USER);
 
         return userRepository.save(user);
     }

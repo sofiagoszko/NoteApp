@@ -3,6 +3,9 @@ package com.hirelens.noteapp.dto;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import java.util.List;
+
+import com.hirelens.noteapp.enums.Role;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -23,6 +26,8 @@ public class UserDTO {
     private String password;
     @NotBlank(message = "Confirmación de password requerida")
     private String passwordConfirm;
+
+    private Role role;
     
     private List<NoteDTO> notes;
 }
