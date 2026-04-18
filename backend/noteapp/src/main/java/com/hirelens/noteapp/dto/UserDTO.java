@@ -2,7 +2,6 @@ package com.hirelens.noteapp.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import java.util.List;
 
 import com.hirelens.noteapp.enums.Role;
 
@@ -28,6 +27,4 @@ public class UserDTO {
     private String passwordConfirm;
 
     private Role role;
-    
-    private List<NoteDTO> notes;
 }
