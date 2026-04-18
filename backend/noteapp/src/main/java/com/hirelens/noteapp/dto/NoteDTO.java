@@ -1,6 +1,6 @@
 package com.hirelens.noteapp.dto;
 
-import java.util.Date;
+import java.time.LocalDateTime;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -19,9 +19,9 @@ public class NoteDTO {
     @Size(max = 500, message = "El contenido no puede exceder los 500 caracteres")
     private String content; 
     
-    private Date createdAt;
+    private LocalDateTime  createdAt;
     
-    private Date updatedAt;
+    private LocalDateTime  updatedAt;
     
     private boolean active;
 }
