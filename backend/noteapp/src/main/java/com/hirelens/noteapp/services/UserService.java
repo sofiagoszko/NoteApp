@@ -5,6 +5,8 @@ import org.springframework.stereotype.Service;
 import com.hirelens.noteapp.models.Note;
 import com.hirelens.noteapp.models.User;
 import com.hirelens.noteapp.dto.UserDTO;
+import com.hirelens.noteapp.dto.UserDTOEdit;
+import com.hirelens.noteapp.dto.UserDTOPass;
 import com.hirelens.noteapp.enums.Role;
 import com.hirelens.noteapp.repositories.NoteRepository;
 import com.hirelens.noteapp.repositories.UserRepository;
@@ -40,15 +42,15 @@ public class UserService {
         return errors;
     }
 
-    public void validatePassword(UserDTO userDTO) {
-        if(!userDTO.getPassword().equals(userDTO.getPasswordConfirm())) {
+    public void validatePassword(String password, String passwordConfirm) {
+        if(!password.equals(passwordConfirm)) {
             throw new RuntimeException("Las contraseñas no coinciden");
         }
     } 
 
     public User createUser(UserDTO userDTO) {
         List<String> validationErrors = validateUser(userDTO);
-        validatePassword(userDTO);
+        validatePassword(userDTO.getPassword(), userDTO.getPasswordConfirm());
 
         if(!validationErrors.isEmpty()) {
             throw new RuntimeException("Errores de validación: " + String.join(", ", validationErrors));
@@ -59,11 +61,12 @@ public class UserService {
         user.setEmail(userDTO.getEmail());
         user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
         user.setRole(Role.USER);
+        user.setNotes(new ArrayList<>());
 
         return userRepository.save(user);
     }
 
-    public void editUser(Long id, UserDTO userDTO) throws BadRequestException {
+    public void editUser(Long id, UserDTOEdit userDTO) throws BadRequestException {
         User existingUser = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
@@ -82,11 +85,11 @@ public class UserService {
         userRepository.save(existingUser);
     }
 
-    public void changePassword(Long id, UserDTO userDTO) {
+    public void changePassword(Long id, UserDTOPass userDTO) {
         User existingUser = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-        validatePassword(userDTO);                
+        validatePassword(userDTO.getPassword(), userDTO.getPasswordConfirm());                
         existingUser.setPassword(passwordEncoder.encode(userDTO.getPassword()));        
         userRepository.save(existingUser);
     }

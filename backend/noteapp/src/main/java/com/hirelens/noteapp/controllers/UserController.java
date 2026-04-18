@@ -1,6 +1,8 @@
 package com.hirelens.noteapp.controllers;
  
 import com.hirelens.noteapp.dto.UserDTO;
+import com.hirelens.noteapp.dto.UserDTOEdit;
+import com.hirelens.noteapp.dto.UserDTOPass;
 import com.hirelens.noteapp.models.User;
 import com.hirelens.noteapp.services.UserService;
  
@@ -61,6 +63,7 @@ public class UserController {
         response.put("id", user.getId());
         response.put("nickname", user.getNickname());
         response.put("email", user.getEmail());
+        response.put("role", user.getRole());
         return ResponseEntity.ok(response);
     }
  
@@ -76,12 +79,14 @@ public class UserController {
         response.put("id", user.getId());
         response.put("nickname", user.getNickname());
         response.put("email", user.getEmail());
+        response.put("role", user.getRole());
+        response.put("notes", user.getNotes());
         return ResponseEntity.ok(response);
     }
  
     // PUT /api/users/{id}
     @PutMapping("/{id}")
-    public ResponseEntity<?> editUser(@PathVariable Long id, @Valid @RequestBody UserDTO userDTO) {
+    public ResponseEntity<?> editUser(@PathVariable Long id, @Valid @RequestBody UserDTOEdit userDTO) {
         try {
             userService.editUser(id, userDTO);
             return ResponseEntity.ok("Usuario actualizado");
@@ -92,7 +97,7 @@ public class UserController {
  
     // PATCH /api/users/{id}/password
     @PatchMapping("/{id}/password")
-    public ResponseEntity<?> changePassword(@PathVariable Long id, @RequestBody UserDTO userDTO) {
+    public ResponseEntity<?> changePassword(@PathVariable Long id, @RequestBody UserDTOPass userDTO) {
         try {
             userService.changePassword(id, userDTO);
             return ResponseEntity.ok("Contraseña actualizada");
