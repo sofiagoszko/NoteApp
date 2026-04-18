@@ -30,12 +30,16 @@ public class NoteController {
 
     // GET /api/users/{userId}/notes
     @GetMapping
-    public ResponseEntity<?> getNotes(@PathVariable Long userId, @RequestParam(required = false) Boolean active) {
+    public ResponseEntity<?> getNotes(@PathVariable Long userId, @RequestParam(required = false) Boolean active, @RequestHeader("X-User-Id") Long requesterId) {
         Optional<User> userOpt = userService.getUserById(userId);
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
         }
  
+        if (!canAccess(requesterId, userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acceso denegado");
+        }
+        
         List<Note> notes;
         if (active != null) {
             notes = noteService.getActiveNotesByUser(userId, active);
@@ -48,7 +52,7 @@ public class NoteController {
  
     // GET /api/users/{userId}/notes/{noteId}
     @GetMapping("/{noteId}")
-    public ResponseEntity<?> getNoteById(@PathVariable Long userId, @PathVariable Long noteId) {
+    public ResponseEntity<?> getNoteById(@PathVariable Long userId, @PathVariable Long noteId, @RequestHeader("X-User-Id") Long requesterId) {
         Optional<Note> noteOpt = noteService.getNoteById(noteId);
         if (noteOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Nota no encontrada");
@@ -56,7 +60,7 @@ public class NoteController {
  
         Note note = noteOpt.get();
 
-        if (!note.getUser().getId().equals(userId)) {
+        if (!canAccess(requesterId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acceso denegado");
         }
  
@@ -65,10 +69,14 @@ public class NoteController {
  
     // POST /api/users/{userId}/notes
     @PostMapping
-    public ResponseEntity<?> createNote(@PathVariable Long userId, @Valid @RequestBody NoteDTO noteDTO) {
+    public ResponseEntity<?> createNote(@PathVariable Long userId, @Valid @RequestBody NoteDTO noteDTO, @RequestHeader("X-User-Id") Long requesterId) {
         Optional<User> userOpt = userService.getUserById(userId);
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+        }
+
+        if (!canAccess(requesterId, userId)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acceso denegado");
         }
  
         Note note = noteService.createNote(noteDTO, userOpt.get());
@@ -77,13 +85,13 @@ public class NoteController {
  
     // PUT /api/users/{userId}/notes/{noteId}
     @PutMapping("/{noteId}")
-    public ResponseEntity<?> editNote(@PathVariable Long userId, @PathVariable Long noteId, @Valid @RequestBody NoteDTO noteDTO) {
+    public ResponseEntity<?> editNote(@PathVariable Long userId, @PathVariable Long noteId, @Valid @RequestBody NoteDTO noteDTO, @RequestHeader("X-User-Id") Long requesterId) {
         Optional<Note> noteOpt = noteService.getNoteById(noteId);
         if (noteOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Nota no encontrada");
         }
  
-        if (!noteOpt.get().getUser().getId().equals(userId)) {
+        if (!canAccess(requesterId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acceso denegado");
         }
  
@@ -98,13 +106,13 @@ public class NoteController {
     // PATCH /api/users/{userId}/notes/{noteId}/toggle-active
     // Archiva o desarchiva la nota
     @PatchMapping("/{noteId}/toggle-active")
-    public ResponseEntity<?> toggleActive(@PathVariable Long userId, @PathVariable Long noteId) {
+    public ResponseEntity<?> toggleActive(@PathVariable Long userId, @PathVariable Long noteId, @RequestHeader("X-User-Id") Long requesterId) {
         Optional<Note> noteOpt = noteService.getNoteById(noteId);
         if (noteOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Nota no encontrada");
         }
  
-        if (!noteOpt.get().getUser().getId().equals(userId)) {
+        if (!canAccess(requesterId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acceso denegado");
         }
  
@@ -119,17 +127,24 @@ public class NoteController {
  
     // DELETE /api/users/{userId}/notes/{noteId}
     @DeleteMapping("/{noteId}")
-    public ResponseEntity<?> deleteNote( @PathVariable Long userId, @PathVariable Long noteId) {
+    public ResponseEntity<?> deleteNote( @PathVariable Long userId, @PathVariable Long noteId, @RequestHeader("X-User-Id") Long requesterId) {
         Optional<Note> noteOpt = noteService.getNoteById(noteId);
         if (noteOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Nota no encontrada");
         }
  
-        if (!noteOpt.get().getUser().getId().equals(userId)) {
+        if (!canAccess(requesterId, userId)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Acceso denegado");
         }
  
         noteService.deleteNote(noteId);
         return ResponseEntity.noContent().build();
+    }
+
+    private boolean canAccess(Long requesterId, Long targetUserId) {
+        if (requesterId.equals(targetUserId)){
+            return true;
+        } 
+        return userService.isAdmin(requesterId);
     }
 }

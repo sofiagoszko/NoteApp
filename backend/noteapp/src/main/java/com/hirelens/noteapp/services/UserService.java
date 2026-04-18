@@ -121,4 +121,9 @@ public class UserService {
     public Optional<User> getUserById(Long id) {
         return userRepository.findById(id);
     }
+
+    public boolean isAdmin(Long userId) {
+        Optional<User> userOpt = getUserById(userId);
+        return userOpt.map(user -> user.getRole() == Role.ADMIN).orElse(false);
+    }   
 }
