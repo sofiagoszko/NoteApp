@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import com.hirelens.noteapp.models.Note;
 import com.hirelens.noteapp.models.User;
 import com.hirelens.noteapp.dto.UserDTO;
+import com.hirelens.noteapp.repositories.NoteRepository;
 import com.hirelens.noteapp.repositories.UserRepository;
 
 import org.apache.coyote.BadRequestException;
@@ -19,6 +20,8 @@ import java.util.Optional;
 public class UserService {
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private NoteRepository noteRepository;
     @Autowired
     private BCryptPasswordEncoder passwordEncoder;
 
@@ -98,9 +101,7 @@ public class UserService {
     }
 
     public List<Note> getNotesByUser(Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));  
-        return userRepository.getNotesByUser(user);   
+        return noteRepository.findByUserId(userId);   
     }
 
     public List<User> getAllUsers() {
