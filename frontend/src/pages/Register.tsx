@@ -1,7 +1,5 @@
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { useAuth } from "../context/AuthContext"
-import type { User } from "../types/User"
 import toast from "react-hot-toast"
 
 interface FormState {
@@ -12,7 +10,6 @@ interface FormState {
 }
 
 export default function RegisterPage() {
-  const { loginUser } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState<FormState>({
     nickname: "",
