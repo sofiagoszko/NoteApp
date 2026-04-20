@@ -5,6 +5,7 @@ import com.hirelens.noteapp.dto.UserDTOEdit;
 import com.hirelens.noteapp.dto.UserDTOPass;
 import com.hirelens.noteapp.models.User;
 import com.hirelens.noteapp.services.UserService;
+import com.hirelens.noteapp.responses.Response;
  
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,7 +19,7 @@ import java.util.Optional;
  
 @RestController
 @RequestMapping("/api/users")
-@CrossOrigin(origins = "http://localhost:3000")
+@CrossOrigin(origins = "http://localhost:5173")
 public class UserController {
  
     @Autowired
@@ -36,7 +37,7 @@ public class UserController {
             response.put("email", user.getEmail());
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new Response<>(false, e.getMessage(), e.getMessage()));
         }
     }
  
@@ -47,12 +48,12 @@ public class UserController {
         String password = credentials.get("password");
  
         if (email == null || password == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Email y password requeridos");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new Response<>(false, "Email y password requeridos", null));
         }
  
         boolean authenticated = userService.authenticateUser(email, password);
         if (!authenticated) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Credenciales inválidas");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new Response<>(false, "Credenciales inválidas", null) );
         }
  
 
@@ -72,7 +73,7 @@ public class UserController {
     public ResponseEntity<?> getUserById(@PathVariable Long id) {
         Optional<User> userOpt = userService.getUserById(id);
         if (userOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new Response<>(false, "Usuario no encontrado", null));
         }
         User user = userOpt.get();
         Map<String, Object> response = new HashMap<>();
@@ -89,7 +90,7 @@ public class UserController {
     public ResponseEntity<?> editUser(@PathVariable Long id, @Valid @RequestBody UserDTOEdit userDTO) {
         try {
             userService.editUser(id, userDTO);
-            return ResponseEntity.ok("Usuario actualizado");
+            return ResponseEntity.ok(new Response<>(true, "Usuario actualizado", userDTO));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
@@ -100,7 +101,7 @@ public class UserController {
     public ResponseEntity<?> changePassword(@PathVariable Long id, @RequestBody UserDTOPass userDTO) {
         try {
             userService.changePassword(id, userDTO);
-            return ResponseEntity.ok("Contraseña actualizada");
+            return ResponseEntity.ok(new Response<>(true, "Contraseña actualizada", null));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
@@ -111,7 +112,7 @@ public class UserController {
     public ResponseEntity<?> deleteUser(@PathVariable Long id) {
         Optional<?> userOpt = userService.getUserById(id);
         if (userOpt.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Usuario no encontrado");
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new Response<>(false, "Usuario no encontrado", null));
         }
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
