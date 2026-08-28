@@ -1,20 +1,26 @@
 FROM eclipse-temurin:21-jdk-alpine AS build
 WORKDIR /app
 
-# Copiar wrapper y pom primero (aprovecha caché de Docker)
-COPY mvnw .
-COPY .mvn .mvn
-COPY pom.xml .
+RUN addgroup -S spring && adduser -S spring -G spring && chown spring:spring /app
+USER spring
+
+COPY --chown=spring:spring mvnw .
+COPY --chown=spring:spring .mvn .mvn
+COPY --chown=spring:spring pom.xml .
 RUN chmod +x mvnw && ./mvnw dependency:go-offline -q
 
-# Copiar fuentes y compilar
-COPY src src
+COPY --chown=spring:spring src src
 RUN ./mvnw clean package -DskipTests -q
 
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar
+
+# Correr la aplicación como usuario no-root
+RUN addgroup -S spring && adduser -S spring -G spring
+USER spring
+
+COPY --from=build --chown=spring:spring /app/target/*.jar app.jar
 
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

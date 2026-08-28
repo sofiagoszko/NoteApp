@@ -1,6 +1,4 @@
 services:
-
-  # ── Base de datos ───────────────────────────────────────────
   db:
     image: mysql:8.0
     container_name: noteapp-db
@@ -21,10 +19,9 @@ services:
     networks:
       - noteapp-network
 
-  # ── Backend ─────────────────────────────────────────────────
   backend:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     container_name: noteapp-backend
     ports:
@@ -40,22 +37,10 @@ services:
     networks:
       - noteapp-network
 
-  # ── Frontend ─────────────────────────────────────────────────
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: noteapp-frontend
-    ports:
-      - "5173:5173"
-    depends_on:
-      - backend
-    networks:
-      - noteapp-network
-
 volumes:
   noteapp-db-data:
 
 networks:
   noteapp-network:
+    name: noteapp-network
     driver: bridge
