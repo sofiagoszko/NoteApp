@@ -58,7 +58,7 @@ La app queda disponible en `http://localhost:5173` (puerto por defecto de Vite).
 
 ```bash
 cd frontend
-docker compose up --build
+docker compose up --build -d
 ```
 
 Esto compila el frontend y lo sirve con nginx en `http://localhost:5173`. `nginx.conf` proxy a todo lo que llega a `/api/` hacia `http://backend:8080/api/`, así que este contenedor necesita compartir red con el contenedor `backend`. Si el backend no está corriendo en la misma red `noteapp-network`, las peticiones a `/api/` van a fallar.

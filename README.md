@@ -78,8 +78,8 @@ Cada servicio tiene su propio `docker-compose` ([`backend/docker-compose.yaml`](
 **Por separado**:
 
 ```bash
-cd backend && docker compose up --build    # MySQL + backend en :8080 (MySQL expuesto en :3307)
-cd frontend && docker compose up --build   # frontend (nginx) en :5173
+cd backend && docker compose up --build -d   # MySQL + backend en :8080 (MySQL expuesto en :3307)
+cd frontend && docker compose up --build -d  # frontend (nginx) en :5173
 ```
 
 **Stack completo**, desde la raíz del repo (el backend debe listarse primero, para que las rutas de build de ambos `Dockerfile` se resuelvan bien):
@@ -88,7 +88,7 @@ cd frontend && docker compose up --build   # frontend (nginx) en :5173
 git clone <url-del-repositorio>
 cd <nombre-del-repo>
 
-docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml up --build
+docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml up --build -d
 ```
 
 Con Docker Compose:

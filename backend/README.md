@@ -80,7 +80,7 @@ Desde esta carpeta:
 
 ```bash
 cd backend
-docker compose up --build
+docker compose up --build -d
 ```
 
 Esto levanta:
@@ -89,8 +89,8 @@ Esto levanta:
 
 Para detener:
 ```bash
-docker compose down          # conserva los datos de la DB
-docker compose down -v       # borra también los datos de la DB
+docker compose down          
+docker compose down -v       
 ```
 
 ## Usuario administrador por defecto
