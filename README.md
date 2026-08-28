@@ -51,7 +51,9 @@ Se necesitan tener las siguientes herramientas con sus versiones mínimas:
 ---
  
 ## Inicio rápido
- 
+
+> Las dos opciones usan los mismos puertos (`8080` y `5173`). No las corras al mismo tiempo: si ya tenés el backend o el frontend corriendo localmente (Opción A) y probás Docker (Opción B), el contenedor va a fallar al intentar publicar un puerto ya ocupado.
+
 ### Opción A — Script bash (requiere Java, Node y MySQL instalados)
  
 ```bash
@@ -68,30 +70,38 @@ El script:
 5. Compila y arranca el backend en el puerto `8080`
 6. Instala dependencias npm y arranca Vite en el puerto `5173`
 7. Mata ambos procesos limpiamente al presionar `Ctrl+C`
-### Opción B — Docker Compose (requiere solo Docker)
- 
+
+### Opción B — Docker Compose 
+
+Cada servicio tiene su propio `docker-compose` ([`backend/docker-compose.yaml`](backend/docker-compose.yaml), [`frontend/docker-compose.yml`](frontend/docker-compose.yml)), pensados para levantarse tanto por separado como en conjunto.
+
+**Por separado**:
+
+```bash
+cd backend && docker compose up --build    # MySQL + backend en :8080 (MySQL expuesto en :3307)
+cd frontend && docker compose up --build   # frontend (nginx) en :5173
+```
+
+**Stack completo**, desde la raíz del repo (el backend debe listarse primero, para que las rutas de build de ambos `Dockerfile` se resuelvan bien):
+
 ```bash
 git clone <url-del-repositorio>
 cd <nombre-del-repo>
- 
-# Copiar los Dockerfiles a sus carpetas correspondientes
-cp Dockerfile.backend backend/Dockerfile
-cp Dockerfile.frontend frontend/Dockerfile
-cp nginx.conf frontend/nginx.conf
- 
-docker compose up --build
+
+docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml up --build
 ```
- 
+
 Con Docker Compose:
 - MySQL 8 se levanta automáticamente con usuario `root` / password `root`
-- El backend se conecta a la DB dentro de la red interna de Docker
-- El frontend se sirve con nginx en el puerto `5173`
+- El backend se conecta a la DB dentro de la red interna de Docker (`noteapp-network`, compartida por ambos archivos)
+- El frontend se sirve con nginx en el puerto `5173`, proxyando `/api/` hacia el backend
 - Los datos de la DB persisten en un volumen Docker entre reinicios
+
 Para detener:
 ```bash
-docker compose down
+docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml down
 # Para también borrar los datos de la DB:
-docker compose down -v
+docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml down -v
 ```
  
 ---
@@ -100,12 +110,13 @@ docker compose down -v
  
 ```
 NoteApp/
-├── start.sh                  ← script de inicio
-├── docker-compose.yml         ← Docker Compose (Opción B)
-├── README.md
+├── start.sh                    ← script de inicio (Opción A)
+├── README.md                   ← este archivo
 ├── backend/
-│    ├── mvnw
+│    ├── README.md
 │    ├── Dockerfile
+│    ├── docker-compose.yaml    ← Docker Compose del backend (DB + API)
+│    ├── mvnw
 │    ├── pom.xml
 │    └── src/main/
 │        ├── java/com/hirelens/noteapp/
@@ -120,10 +131,13 @@ NoteApp/
 │        │   ├── services/
 │        │   └── NoteappApplication.java
 │        └── resources/
-│            └── application.properties  ← generado por start.sh
+│            └── application.properties  ← generado por start.sh, no versionado
 └── frontend/
+    ├── README.md
     ├── Dockerfile
+    ├── docker-compose.yml      ← Docker Compose del frontend
     ├── nginx.conf
+    ├── .env.example
     └── src/
         ├── components/
         ├── context/
