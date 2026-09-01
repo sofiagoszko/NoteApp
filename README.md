@@ -50,28 +50,52 @@ Se necesitan tener las siguientes herramientas con sus versiones mínimas:
 
 ---
  
-## Inicio rápido
-
-> Las dos opciones usan los mismos puertos (`8080` y `5173`). No las corras al mismo tiempo: si ya tenés el backend o el frontend corriendo localmente (Opción A) y probás Docker (Opción B), el contenedor va a fallar al intentar publicar un puerto ya ocupado.
-
-### Opción A — Script bash (requiere Java, Node y MySQL instalados)
+## Estructura del proyecto
  
-```bash
-git clone <url-del-repositorio>
-cd <nombre-del-repo>
-bash start.sh
+```
+NoteApp/
+├── README.md                   
+├── backend/
+│    ├── README.md
+│    ├── Dockerfile
+│    ├── docker-compose.yaml    
+│    ├── mvnw
+│    ├── pom.xml
+│    └── src/main/
+│        ├── java/com/hirelens/noteapp/
+│        │   ├── config/
+│        │   ├── controllers/
+│        │   ├── dto/
+│        │   ├── enums/
+│        │   ├── mappers/
+│        │   ├── models/
+│        │   ├── repositories/
+│        │   ├── responses/
+│        │   ├── services/
+│        │   └── NoteappApplication.java
+│        └── resources/
+│            └── application.properties 
+└── frontend/
+    ├── README.md
+    ├── Dockerfile
+    ├── docker-compose.yml     
+    ├── nginx.conf
+    ├── .env.example
+    └── src/
+        ├── components/
+        ├── context/
+        ├── pages/
+        ├── types/
+        ├── App.tsx
+        ├── index.css
+        └──main.tsx
 ```
  
-El script:
-1. Verifica que las dependencias estén instaladas
-2. Pide usuario y password de MySQL
-3. Crea la base de datos `noteapp` si no existe
-4. Genera `application.properties` automáticamente
-5. Compila y arranca el backend en el puerto `8080`
-6. Instala dependencias npm y arranca Vite en el puerto `5173`
-7. Mata ambos procesos limpiamente al presionar `Ctrl+C`
-
-### Opción B — Docker Compose 
+---
+ 
+## Inicio rápido
+ 
+### Docker Compose
 
 Cada servicio tiene su propio `docker-compose` ([`backend/docker-compose.yaml`](backend/docker-compose.yaml), [`frontend/docker-compose.yml`](frontend/docker-compose.yml)), pensados para levantarse tanto por separado como en conjunto.
 
@@ -106,53 +130,8 @@ docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml dow
  
 ---
  
-## Estructura del proyecto
- 
-```
-NoteApp/
-├── start.sh                    ← script de inicio (Opción A)
-├── README.md                   ← este archivo
-├── backend/
-│    ├── README.md
-│    ├── Dockerfile
-│    ├── docker-compose.yaml    ← Docker Compose del backend (DB + API)
-│    ├── mvnw
-│    ├── pom.xml
-│    └── src/main/
-│        ├── java/com/hirelens/noteapp/
-│        │   ├── config/
-│        │   ├── controllers/
-│        │   ├── dto/
-│        │   ├── enums/
-│        │   ├── mappers/
-│        │   ├── models/
-│        │   ├── repositories/
-│        │   ├── responses/
-│        │   ├── services/
-│        │   └── NoteappApplication.java
-│        └── resources/
-│            └── application.properties  ← generado por start.sh, no versionado
-└── frontend/
-    ├── README.md
-    ├── Dockerfile
-    ├── docker-compose.yml      ← Docker Compose del frontend
-    ├── nginx.conf
-    ├── .env.example
-    └── src/
-        ├── components/
-        ├── context/
-        ├── pages/
-        ├── types/
-        ├── App.tsx
-        ├── index.css
-        └──main.tsx
-```
- 
----
- 
 ## Configuración manual
  
-Si no se usa el script, se recomienda seguir estos pasos:
  
 ### 1. Base de datos
  
