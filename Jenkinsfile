@@ -1,57 +1,53 @@
 pipeline {
+    // El nodo seleccionado debe ejecutar Windows y tener Git, Docker, Java y Node.js en PATH.
     agent any
 
     options {
-        // El stack usa puertos y nombres de contenedor fijos; no debe desplegarse en paralelo.
         skipDefaultCheckout(true)
         disableConcurrentBuilds()
         timestamps()
         timeout(time: 20, unit: 'MINUTES')
     }
 
-    environment {
-        COMPOSE_FILES = '-f backend/docker-compose.yaml -f frontend/docker-compose.yml'
-    }
-
     stages {
         stage('Checkout') {
             steps {
-                // Obtiene la revisión configurada en el job y muestra el commit construido.
                 checkout scm
-                sh '''
-                    set -eu
-                    echo "Commit construido:"
-                    git log -1 --pretty=format:'Hash: %H%nAutor: %an%nFecha: %ad%nMensaje: %s%n'
+                bat '''@echo off
+                    echo Commit construido:
+                    git log -1 --pretty=format:"Hash: %%H%%nAutor: %%an%%nFecha: %%ad%%nMensaje: %%s%%n"
                 '''
             }
         }
 
         stage('Backend Test') {
             steps {
-                // El test de contexto necesita la instancia MySQL definida por el proyecto.
-                sh '''
-                    set -eu
+                powershell '''
+                    $ErrorActionPreference = 'Stop'
                     docker compose -f backend/docker-compose.yaml up -d db
+                    if ($LASTEXITCODE -ne 0) { throw 'No se pudo iniciar MySQL.' }
 
-                    attempts=0
-                    until [ "$(docker inspect --format='{{.State.Health.Status}}' noteapp-db 2>/dev/null || true)" = "healthy" ]; do
-                        attempts=$((attempts + 1))
-                        if [ "$attempts" -ge 30 ]; then
-                            echo "MySQL no alcanzó el estado healthy dentro del tiempo esperado."
-                            docker compose -f backend/docker-compose.yaml logs --tail=100 db
-                            exit 1
-                        fi
-                        sleep 2
-                    done
-
-                    chmod +x backend/mvnw
-                    cd backend
-                    SPRING_DOCKER_COMPOSE_ENABLED=false \
-                    SPRING_DATASOURCE_URL='jdbc:mysql://localhost:3307/noteapp?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true' \
-                    SPRING_DATASOURCE_USERNAME=root \
-                    SPRING_DATASOURCE_PASSWORD=root \
-                    ./mvnw test
+                    $healthy = $false
+                    for ($attempt = 1; $attempt -le 30; $attempt++) {
+                        $status = docker inspect --format='{{.State.Health.Status}}' noteapp-db 2>$null
+                        if ($status -eq 'healthy') { $healthy = $true; break }
+                        Start-Sleep -Seconds 2
+                    }
+                    if (-not $healthy) {
+                        docker compose -f backend/docker-compose.yaml logs --tail=100 db
+                        throw 'MySQL no alcanzó el estado healthy dentro del tiempo esperado.'
+                    }
                 '''
+                dir('backend') {
+                    withEnv([
+                        'SPRING_DOCKER_COMPOSE_ENABLED=false',
+                        'SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3307/noteapp?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true',
+                        'SPRING_DATASOURCE_USERNAME=root',
+                        'SPRING_DATASOURCE_PASSWORD=root'
+                    ]) {
+                        bat 'mvnw.cmd test'
+                    }
+                }
             }
             post {
                 always {
@@ -62,13 +58,12 @@ pipeline {
 
         stage('Frontend Validation') {
             steps {
-                // No existe script de tests; el build valida TypeScript y la compilación de Vite.
                 dir('frontend') {
-                    echo 'No se encontró un script de tests en frontend/package.json; se validará el build de producción.'
-                    sh '''
-                        set -eu
-                        npm ci
-                        npm run build
+                    echo 'No se encontró un script de tests; se validará el build de producción.'
+                    bat '''@echo off
+                        call npm.cmd ci
+                        if errorlevel 1 exit /b %errorlevel%
+                        call npm.cmd run build
                     '''
                 }
             }
@@ -76,68 +71,67 @@ pipeline {
 
         stage('Docker Build') {
             steps {
-                // Construye backend y frontend mediante los archivos Compose del repositorio.
-                sh '''
-                    set -eu
-                    docker compose $COMPOSE_FILES build
-                '''
+                bat 'docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml build'
             }
         }
 
         stage('Stop Previous Version') {
             steps {
-                // Detiene la versión anterior sin usar -v, por lo que conserva los datos de MySQL.
-                sh '''
-                    docker compose $COMPOSE_FILES down || true
-                '''
+                // No usa -v, por lo que conserva los datos de MySQL.
+                bat(returnStatus: true, script: 'docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml down')
             }
         }
 
         stage('Deploy') {
             steps {
-                // Levanta el stack completo en segundo plano con las imágenes actuales.
-                sh '''
-                    set -eu
-                    docker compose $COMPOSE_FILES up --build -d
-                '''
+                bat 'docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml up --build -d'
             }
         }
 
         stage('Health Check') {
             steps {
-                // Comprueba los contenedores, la salud de MySQL y la respuesta HTTP del frontend.
-                sh '''
-                    set -eu
-                    docker compose $COMPOSE_FILES ps
+                powershell '''
+                    $ErrorActionPreference = 'Stop'
+                    $compose = @('-f', 'backend/docker-compose.yaml', '-f', 'frontend/docker-compose.yml')
 
-                    for service in db backend frontend; do
-                        if ! docker compose $COMPOSE_FILES ps --services --status running | grep -qx "$service"; then
-                            echo "El servicio $service no está ejecutándose."
-                            docker compose $COMPOSE_FILES logs --tail=100
-                            exit 1
-                        fi
-                    done
+                    docker compose @compose ps
+                    if ($LASTEXITCODE -ne 0) { throw 'No se pudo consultar el stack.' }
 
-                    attempts=0
-                    until [ "$(docker inspect --format='{{.State.Health.Status}}' noteapp-db 2>/dev/null || true)" = "healthy" ]; do
-                        attempts=$((attempts + 1))
-                        if [ "$attempts" -ge 30 ]; then
-                            echo "MySQL no alcanzó el estado healthy."
-                            docker compose $COMPOSE_FILES logs --tail=100 db
-                            exit 1
-                        fi
-                        sleep 2
-                    done
+                    $running = @(docker compose @compose ps --services --status running)
+                    foreach ($service in @('db', 'backend', 'frontend')) {
+                        if ($running -notcontains $service) {
+                            docker compose @compose logs --tail=100
+                            throw "El servicio $service no está ejecutándose."
+                        }
+                    }
 
-                    if ! curl --fail --silent --show-error \
-                        --retry 20 --retry-delay 3 --retry-connrefused \
-                        http://localhost:5173/ > /dev/null; then
-                        echo "El frontend no respondió correctamente."
-                        docker compose $COMPOSE_FILES logs --tail=100
-                        exit 1
-                    fi
+                    $healthy = $false
+                    for ($attempt = 1; $attempt -le 30; $attempt++) {
+                        $status = docker inspect --format='{{.State.Health.Status}}' noteapp-db 2>$null
+                        if ($status -eq 'healthy') { $healthy = $true; break }
+                        Start-Sleep -Seconds 2
+                    }
+                    if (-not $healthy) {
+                        docker compose @compose logs --tail=100 db
+                        throw 'MySQL no alcanzó el estado healthy.'
+                    }
 
-                    echo "Health check de NoteApp completado correctamente."
+                    $frontendReady = $false
+                    for ($attempt = 1; $attempt -le 20; $attempt++) {
+                        try {
+                            Invoke-WebRequest -Uri 'http://localhost:5173/' -UseBasicParsing -TimeoutSec 10 | Out-Null
+                            $frontendReady = $true
+                            break
+                        } catch {
+                            Start-Sleep -Seconds 3
+                        }
+                    }
+                    if (-not $frontendReady) {
+                        docker compose @compose logs --tail=100
+                        throw 'El frontend no respondió correctamente.'
+                    }
+
+                    Write-Host 'Health check de NoteApp completado correctamente.'
                 '''
             }
         }
@@ -151,8 +145,15 @@ pipeline {
             echo 'El pipeline de NoteApp falló durante una etapa de validación, construcción, despliegue o health check.'
         }
         always {
-            // Deja visible el estado final sin convertir esta tarea informativa en otro fallo.
-            sh 'docker compose $COMPOSE_FILES ps || docker ps || true'
+            script {
+                def composeStatus = bat(
+                    returnStatus: true,
+                    script: 'docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml ps'
+                )
+                if (composeStatus != 0) {
+                    bat(returnStatus: true, script: 'docker ps')
+                }
+            }
         }
     }
 }
