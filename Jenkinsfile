@@ -20,6 +20,27 @@ pipeline {
             }
         }
 
+        stage('Configurar entorno') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'noteapp-jwt-secret',    variable: 'APP_JWT_SECRET'),
+                    string(credentialsId: 'noteapp-admin-password', variable: 'APP_ADMIN_PASSWORD')
+                ]) {
+                    powershell '''
+                        $ErrorActionPreference = 'Stop'
+                        $lines = @(
+                            "APP_JWT_SECRET=$env:APP_JWT_SECRET",
+                            "APP_CORS_ALLOWED_ORIGINS=http://localhost:5173",
+                            "APP_ADMIN_PASSWORD=$env:APP_ADMIN_PASSWORD"
+                        )
+                        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+                        [System.IO.File]::WriteAllText("backend\\.env", ($lines -join "`n") + "`n", $utf8NoBom)
+                        Write-Host "backend/.env generado con $($lines.Count) variables."
+                    '''
+                }
+            }
+        }
+
         stage('Backend Test') {
             steps {
                 dir('backend') {

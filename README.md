@@ -296,6 +296,17 @@ Antes de iniciar Jenkins es necesario tener instalado:
 
 Docker Desktop debe estar iniciado antes de ejecutar el pipeline.
 
+### Credenciales requeridas
+
+El pipeline genera `backend/.env` a partir de dos credenciales de Jenkins. Antes de la primera
+corrida, en **Manage Jenkins → Credentials → System → Global credentials → Add Credentials**,
+crear ambas con tipo **Secret text**:
+
+| ID | Valor |
+|----|-------|
+| `noteapp-jwt-secret` | un secreto de mínimo 32 caracteres (`openssl rand -base64 48`) |
+| `noteapp-admin-password` | la contraseña para `admin@noteapp.com` |
+
 ### Iniciar Jenkins localmente
 
 Descargar `Jenkins.war` desde el sitio oficial de Jenkins.
