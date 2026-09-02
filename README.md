@@ -61,20 +61,26 @@ NoteApp/
 │    ├── docker-compose.yaml    
 │    ├── mvnw
 │    ├── pom.xml
-│    └── src/main/
-│        ├── java/com/hirelens/noteapp/
-│        │   ├── config/
-│        │   ├── controllers/
-│        │   ├── dto/
-│        │   ├── enums/
-│        │   ├── mappers/
-│        │   ├── models/
-│        │   ├── repositories/
-│        │   ├── responses/
-│        │   ├── services/
-│        │   └── NoteappApplication.java
-│        └── resources/
-│            └── application.properties 
+│    └── src/
+│        ├── main/
+│        │   ├── java/com/hirelens/noteapp/
+│        │   │   ├── config/          ← SecurityConfig, DataInitializer, *Properties
+│        │   │   ├── controllers/
+│        │   │   ├── dto/
+│        │   │   ├── enums/
+│        │   │   ├── exceptions/      ← GlobalExceptionHandler
+│        │   │   ├── mappers/
+│        │   │   ├── models/
+│        │   │   ├── repositories/
+│        │   │   ├── responses/
+│        │   │   ├── security/        ← JwtService, RateLimitFilter, AuthorizationService, handlers REST
+│        │   │   ├── services/
+│        │   │   └── NoteappApplication.java
+│        │   └── resources/
+│        │       └── application.properties 
+│        └── test/
+│            ├── java/com/hirelens/noteapp/   ← services/, controllers/, security/, integration/
+│            └── resources/application.properties  ← perfil de test (H2 en memoria)
 └── frontend/
     ├── README.md
     ├── Dockerfile
@@ -82,10 +88,11 @@ NoteApp/
     ├── nginx.conf
     ├── .env.example
     └── src/
-        ├── components/
-        ├── context/
-        ├── pages/
+        ├── components/        (+ *.test.tsx)
+        ├── context/           (+ *.test.tsx)
+        ├── pages/             (+ *.test.tsx)
         ├── types/
+        ├── test/setup.ts      ← setup de Vitest
         ├── App.tsx
         ├── index.css
         └──main.tsx
@@ -183,6 +190,40 @@ npm run dev
  La app queda disponible en `http://localhost:5173`.
 ---
  
+## Pruebas
+
+### Backend
+
+```bash
+cd backend
+./mvnw test
+```
+
+Los tests corren contra una base **H2 en memoria** (`src/test/resources/application.properties`),
+así que **no necesitan MySQL ni `application.properties` local ni `APP_JWT_SECRET`**. Cubren:
+
+| Suite | Qué prueba |
+|-------|------------|
+| `services/` | `UserService` y `NoteService` con Mockito (unitarios) |
+| `controllers/` | `NoteController` / `UserController` vía `MockMvc` + JWT simulado |
+| `security/` | emisión/validación de JWT, autorización self-or-admin, rate limiting por IP |
+| `integration/` | flujo end-to-end (`@SpringBootTest`): registro → login → CRUD de notas |
+
+Un test puntual: `./mvnw test -Dtest=NoteControllerTest` · un método: `./mvnw test -Dtest=NoteControllerTest#getNoteByIdReturnsNoteForUser`
+
+### Frontend
+
+```bash
+cd frontend
+npm run test:ci     # una corrida (CI)
+npm run test        # modo watch
+```
+
+Vitest + Testing Library + jsdom. Cubren `AuthContext`, `ProtectedRoute`, `Login` y `Notes`
+(mockeando `fetch`), incluyendo el envío del header `Authorization: Bearer` y el logout automático al recibir 401.
+
+---
+ 
 ## Endpoints principales
  
 ### Usuarios
@@ -200,8 +241,10 @@ npm run dev
  
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
+| `GET` | `/api/notes/users` | Listar todas las notas del sistema (solo `ADMIN`) |
 | `GET` | `/api/notes/users/{userId}/active?active=true` | Notas activas |
 | `GET` | `/api/notes/users/{userId}/active?active=false` | Notas archivadas |
+| `GET` | `/api/notes/users/{userId}/notes/{noteId}` | Obtener una nota |
 | `POST` | `/api/notes/users/{userId}/notes` | Crear nota |
 | `PUT` | `/api/notes/users/{userId}/notes/{noteId}` | Editar nota |
 | `PATCH` | `/api/notes/users/{userId}/notes/{noteId}/toggle-active` | Archivar/desarchivar |

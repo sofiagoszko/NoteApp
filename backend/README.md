@@ -14,19 +14,31 @@ backend/
     ├── main/
     │   ├── java/com/hirelens/noteapp/
     │   │   ├── NoteappApplication.java
-    │   │   ├── config/            ← SecurityConfig, DataInitializer 
+    │   │   ├── config/            ← SecurityConfig, DataInitializer, JwtProperties, RateLimitProperties
     │   │   ├── controllers/       ← NoteController, UserController
-    │   │   ├── dto/                ← NoteDTO, NoteDTONew, NoteDTOEdit, UserDTO, UserDTOEdit, UserDTOPass
+    │   │   ├── dto/                ← NoteDTO*, UserDTO*, LoginRequest, AuthResponse
     │   │   ├── enums/              ← Role
+    │   │   ├── exceptions/         ← GlobalExceptionHandler, InvalidCredentialsException
     │   │   ├── mappers/            ← NoteMapper, UserMapper
     │   │   ├── models/             ← Note, User (entidades JPA)
     │   │   ├── repositories/       ← NoteRepository, UserRepository
     │   │   ├── responses/          ← Response
+    │   │   ├── security/           ← JwtService, RateLimitFilter, ClientIpResolver,
+    │   │   │                          AuthorizationService (@authz), RestAuthenticationEntryPoint,
+    │   │   │                          RestAccessDeniedHandler
     │   │   └── services/           ← NoteService, UserService
     │   └── resources/
-    │       └── application.properties   ← generado localmente
-    └── test/java/com/hirelens/noteapp/
-        └── NoteappApplicationTests.java
+    │       ├── application.properties           ← generado localmente (gitignored)
+    │       └── application.properties.example   ← plantilla
+    └── test/
+        ├── java/com/hirelens/noteapp/
+        │   ├── NoteappApplicationTests.java
+        │   ├── services/           ← NoteServiceTest, UserServiceTest (unitarios con Mockito)
+        │   ├── controllers/        ← NoteControllerTest, UserControllerTest (MockMvc + JWT simulado)
+        │   ├── security/           ← JwtServiceTest, AuthIntegrationTest, RateLimitTest
+        │   └── integration/        ← BackendIntegrationTest (@SpringBootTest end-to-end)
+        └── resources/
+            └── application.properties           ← perfil de test: H2 en memoria, secreto JWT de test
 ```
 
 ## Dependencias
@@ -39,10 +51,14 @@ backend/
 | Spring Boot Starter Web MVC | 4.0.5 |
 | Spring Boot Starter Data JPA | 4.0.5 |
 | Spring Boot Starter Security | 4.0.5 |
+| Spring Boot Starter OAuth2 Resource Server | 4.0.5 |
 | Spring Boot Starter Validation | 4.0.5 |
+| Bucket4j (`bucket4j_jdk17-core`) | 8.19.0 |
+| Caffeine | (gestionada por el BOM) |
 | MySQL Connector/J | 9.x |
 | Lombok | 1.18.x |
 | MySQL (motor de base de datos) | 8.0 |
+| H2 | test — base en memoria |
 
 Definidas en [`pom.xml`](pom.xml). El paquete base de la aplicación es `com.hirelens.noteapp`.
 
@@ -114,4 +130,27 @@ Solo se crea si está definida la variable `APP_ADMIN_PASSWORD`. Si no, no se si
 | Email | `admin@noteapp.com` |
 | Password | el valor de `APP_ADMIN_PASSWORD` |
 | Rol | `ADMIN` |
+
+## Pruebas
+
+```bash
+./mvnw test
+```
+
+Corren contra **H2 en memoria** (`src/test/resources/application.properties`), con su propio secreto
+JWT de test: **no necesitan MySQL, ni `application.properties` local, ni `APP_JWT_SECRET`**.
+
+| Paquete | Tipo | Cubre |
+|---|---|---|
+| `services/` | unitario (Mockito) | reglas de `UserService` (registro, validaciones, `authenticate`) y `NoteService` (CRUD, filtro por dueño) |
+| `controllers/` | slice (`@SpringBootTest` + `MockMvc` + `SecurityMockMvcRequestPostProcessors.jwt()`) | contratos HTTP, códigos de estado, forma de `AuthResponse`, 401 sin token, 403 fuera de tu path |
+| `security/` | integración | emisión/validación del JWT (`JwtServiceTest`), `@authz.isSelfOrAdmin` y rol `ADMIN` (`AuthIntegrationTest`), rate limiting por IP (`RateLimitTest`) |
+| `integration/` | end-to-end (`@SpringBootTest`) | registro → login → crear/listar/editar/archivar; acceso cruzado entre usuarios (403 por path ajeno, 404 por nota que no es tuya) |
+
+Ejecutar una sola clase o método:
+
+```bash
+./mvnw test -Dtest=AuthIntegrationTest
+./mvnw test -Dtest=NoteControllerTest#getNoteByIdReturnsNoteForUser
+```
 
