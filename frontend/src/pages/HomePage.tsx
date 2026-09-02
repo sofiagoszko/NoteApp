@@ -80,7 +80,7 @@ export default function HomePage() {
         </main>
 
         <footer className="relative z-10 text-center py-6 text-sm text-[#1a1a2e]">
-            Hecho por Sofia Lara Goszko · NoteApp 2026
+            Hecho por Grupo 12 · NoteApp 2026
         </footer>
     </div>
     )

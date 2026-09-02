@@ -10,7 +10,7 @@ frontend/
 ├── Dockerfile              ← build 
 ├── docker-compose.yml      ← contenedor del frontend
 ├── .dockerignore
-├── nginx.conf              ← sirve la SPA y proxya /api/ hacia el backend
+├── nginx.conf              ← sirve la SPA, proxya /api/, caché + cabeceras de seguridad
 ├── .env.example            ← plantilla de variables de entorno
 ├── vite.config.ts          ← config de Vite y de Vitest (bloque `test`)
 ├── index.html
