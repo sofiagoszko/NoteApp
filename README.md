@@ -306,4 +306,58 @@ Desde la carpeta donde se encuentre el archivo ejecutar:
 java -jar Jenkins.war --httpPort=8081
 
 (acá usamos este puerto porque el 8080 lo ocupa la app)
- 
+
+Luego acceder desde el navegador a:
+
+http://localhost:8081
+
+La primera vez que se inicia Jenkins solicitará una contraseña inicial de administrador.
+
+En Windows puede obtenerse desde PowerShell con:
+
+Get-Content "$env:USERPROFILE\.jenkins\secrets\initialAdminPassword"
+
+Luego se debe completar la configuración inicial de Jenkins, instalar los plugins recomendados y crear un usuario administrador.
+
+Configuración del Job
+
+Desde el panel principal de Jenkins seleccionar:
+
+New Item
+
+Ingresar un nombre para el Job, por ejemplo:
+
+NoteApp
+
+Seleccionar el tipo:
+
+Pipeline
+
+y crear el Job.
+
+En la configuración del Pipeline seleccionar:
+
+Definition: Pipeline script from SCM
+SCM: Git
+
+Configurar como repositorio:
+
+https://github.com/sofiagoszko/NoteApp.git
+
+En la sección Branches to build indicar la rama sobre la cual se ejecutará Jenkins.
+
+Durante el desarrollo y prueba del pipeline se utilizó:
+
+*/Feature/Jenkins
+
+Una vez que el Jenkinsfile haya sido validado y mergeado, el Job puede configurarse para trabajar sobre:
+
+*/dev
+
+En el campo Script Path indicar:
+
+Jenkinsfile
+
+Guardar.
+
+Para ejecutar el job le damos a "Build now"
