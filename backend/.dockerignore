@@ -5,3 +5,5 @@ target/
 .vscode
 *.iml
 HELP.md
+.env
+.env.example

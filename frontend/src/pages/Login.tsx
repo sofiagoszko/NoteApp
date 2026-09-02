@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-import type { User } from "../types/User"
+import type { AuthResponse } from "../types/User"
 import toast from "react-hot-toast"
 
 export default function LoginPage() {
@@ -26,12 +26,13 @@ export default function LoginPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                toast.error(typeof data === "string" ? data : "Credenciales inválidas");
+                toast.error(data?.message ?? (typeof data === "string" ? data : "Credenciales inválidas"));
                 return;
             }
 
-            loginUser(data as User);
-            toast.success(`¡Bienvenido, ${data.nickname}!`);
+            const auth = data as AuthResponse;
+            loginUser(auth.user, auth.token);
+            toast.success(`¡Bienvenido, ${auth.user.nickname}!`);
             navigate("/notes");
         } catch {
             toast.error("Error de conexión");
