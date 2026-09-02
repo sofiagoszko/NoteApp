@@ -99,6 +99,14 @@ NoteApp/
 
 Cada servicio tiene su propio `docker-compose` ([`backend/docker-compose.yaml`](backend/docker-compose.yaml), [`frontend/docker-compose.yml`](frontend/docker-compose.yml)), pensados para levantarse tanto por separado como en conjunto.
 
+> **Requisito**: el backend necesita `APP_JWT_SECRET` (mínimo 32 caracteres). Creá `backend/.env`
+> a partir del ejemplo y completá el secreto:
+> ```bash
+> cp backend/.env.example backend/.env
+> # editá backend/.env:  APP_JWT_SECRET=$(openssl rand -base64 48)
+> ```
+> `docker compose` lee ese `backend/.env` para las variables `${...}` del `docker-compose.yaml`.
+
 **Por separado**:
 
 ```bash
@@ -111,6 +119,7 @@ cd frontend && docker compose up --build -d  # frontend (nginx) en :5173
 ```bash
 git clone <url-del-repositorio>
 cd <nombre-del-repo>
+cp backend/.env.example backend/.env      # y completar APP_JWT_SECRET
 
 docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml up --build -d
 ```
@@ -141,30 +150,26 @@ CREATE DATABASE noteapp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
  
 ### 2. Backend — application.properties
  
-Creá el archivo en `backend/noteapp/src/main/resources/application.properties`:
+Copiá la plantilla y completá tus datos de MySQL y el secreto JWT:
+ 
+```bash
+cd backend
+cp src/main/resources/application.properties.example src/main/resources/application.properties
+```
+ 
+Editá al menos:
  
 ```properties
-spring.application.name=noteapp
-
-server.port=8080
-
-spring.datasource.url=jdbc:mysql://localhost:3306/noteapp
 spring.datasource.username=TU_USUARIO
 spring.datasource.password=TU_PASSWORD
-spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql: true
 
-logging.level.org.springframework=DEBUG
-logging.level.com.ap.sgri=DEBUG
-spring.servlet.multipart.enabled=true
-spring.docker.compose.enabled=false
+# Obligatorio, mínimo 32 caracteres.  Generar:  openssl rand -base64 48
+app.jwt.secret=UN_SECRETO_LARGO_Y_ALEATORIO
 ```
  
 ### 3. Arrancar el backend
  
 ```bash
-cd backend/
 ./mvnw spring-boot:run
 ```
  
@@ -184,8 +189,8 @@ npm run dev
  
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
-| `POST` | `/api/users/register` | Registrar usuario |
-| `POST` | `/api/users/login` | Iniciar sesión |
+| `POST` | `/api/users/register` | Registrar usuario (devuelve token + user) |
+| `POST` | `/api/users/login` | Iniciar sesión (devuelve token + user) |
 | `GET` | `/api/users/{id}` | Obtener usuario |
 | `PUT` | `/api/users/{id}` | Editar nickname y email |
 | `PATCH` | `/api/users/{id}/password` | Cambiar contraseña |
@@ -203,18 +208,21 @@ npm run dev
 | `DELETE` | `/api/notes/users/{userId}/notes/{noteId}` | Eliminar nota |
  
 
-> Todos los endpoints (excepto login y register) requieren el header `X-User-Id: {id}`.
+> Todos los endpoints (excepto `login` y `register`) requieren el header `Authorization: Bearer {token}`.
+> El token se obtiene del `login`/`register`, dura 1 hora y al vencer hay que volver a iniciar sesión.
+> Un usuario solo puede operar sobre su propia cuenta y sus propias notas (los `ADMIN` pueden sobre cualquiera).
  
 ---
  
 ## Usuario administrador
  
-Al iniciar la aplicación por primera vez se crea automáticamente un usuario administrador:
+Si se define la variable de entorno `APP_ADMIN_PASSWORD`, al iniciar por primera vez se crea
+automáticamente un usuario administrador. Si no se define, no se crea ninguno.
  
 | Campo | Valor |
 |-------|-------|
 | Email | `admin@noteapp.com` |
-| Password | `admin123` |
+| Password | el valor de `APP_ADMIN_PASSWORD` |
 | Rol | `ADMIN` |
  
 ---
@@ -222,7 +230,8 @@ Al iniciar la aplicación por primera vez se crea automáticamente un usuario ad
 ## Futuras mejoras
  
 - **Panel de administración** — la separación de roles `USER` / `ADMIN` ya está implementada en el backend. Como mejora futura se puede agregar un panel web para que el administrador gestione todos los usuarios y notas del sistema desde una interfaz dedicada.
-- Autenticación con JWT para reemplazar el header `X-User-Id`
+- **Refresh tokens** — hoy al vencer el token (1 h) hay que volver a iniciar sesión.
+- **Bloqueo de cuenta** — sumar bloqueo tras N intentos fallidos, además del rate limiting por IP.
 - Paginación en el listado de notas
 - Búsqueda de notas por texto libre
 - Categorías personalizadas por usuario
