@@ -22,31 +22,8 @@ pipeline {
 
         stage('Backend Test') {
             steps {
-                powershell '''
-                    $ErrorActionPreference = 'Stop'
-                    docker compose -f backend/docker-compose.yaml up -d db
-                    if ($LASTEXITCODE -ne 0) { throw 'No se pudo iniciar MySQL.' }
-
-                    $healthy = $false
-                    for ($attempt = 1; $attempt -le 30; $attempt++) {
-                        $status = docker inspect --format='{{.State.Health.Status}}' noteapp-db 2>$null
-                        if ($status -eq 'healthy') { $healthy = $true; break }
-                        Start-Sleep -Seconds 2
-                    }
-                    if (-not $healthy) {
-                        docker compose -f backend/docker-compose.yaml logs --tail=100 db
-                        throw 'MySQL no alcanzó el estado healthy dentro del tiempo esperado.'
-                    }
-                '''
                 dir('backend') {
-                    withEnv([
-                        'SPRING_DOCKER_COMPOSE_ENABLED=false',
-                        'SPRING_DATASOURCE_URL=jdbc:mysql://localhost:3307/noteapp?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true',
-                        'SPRING_DATASOURCE_USERNAME=root',
-                        'SPRING_DATASOURCE_PASSWORD=root'
-                    ]) {
-                        bat 'mvnw.cmd test'
-                    }
+                    bat 'mvnw.cmd test'
                 }
             }
             post {
