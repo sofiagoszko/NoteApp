@@ -54,10 +54,13 @@ describe('LoginPage', () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
-        id: 1,
-        nickname: 'natalia',
-        email: 'natalia@mail.com',
-        role: 'USER',
+        token: 'fake-token',
+        user: {
+          id: 1,
+          nickname: 'natalia',
+          email: 'natalia@mail.com',
+          role: 'USER',
+        },
       }),
     })
 
@@ -74,6 +77,7 @@ describe('LoginPage', () => {
       body: JSON.stringify({ email: 'natalia@mail.com', password: 'secret' }),
     })
     expect(localStorage.getItem('user')).toContain('natalia@mail.com')
+    expect(localStorage.getItem('token')).toBe('fake-token')
     expect(toast.success).toHaveBeenCalledWith('¡Bienvenido, natalia!')
   })
 

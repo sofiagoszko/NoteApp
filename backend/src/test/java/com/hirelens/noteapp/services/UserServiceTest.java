@@ -40,7 +40,7 @@ class UserServiceTest {
 
     @Test
     void createUserRegistersUserWithEncodedPasswordAndUserRole() {
-        UserDTO userDTO = new UserDTO("natalia", "natalia@mail.com", "secret", "secret", null);
+        UserDTO userDTO = new UserDTO("natalia", "natalia@mail.com", "secret", "secret");
         User savedUser = new User(1L, "natalia", "natalia@mail.com", "encoded-secret", Role.USER, java.util.List.of());
 
         when(userRepository.findByNickname("natalia")).thenReturn(Optional.empty());
@@ -64,7 +64,7 @@ class UserServiceTest {
 
     @Test
     void createUserRejectsDuplicatedNickname() {
-        UserDTO userDTO = new UserDTO("natalia", "new@mail.com", "secret", "secret", null);
+        UserDTO userDTO = new UserDTO("natalia", "new@mail.com", "secret", "secret");
         User existingUser = new User(1L, "natalia", "old@mail.com", "encoded", Role.USER, java.util.List.of());
 
         when(userRepository.findByNickname("natalia")).thenReturn(Optional.of(existingUser));
@@ -80,7 +80,7 @@ class UserServiceTest {
 
     @Test
     void createUserRejectsDuplicatedEmail() {
-        UserDTO userDTO = new UserDTO("newnick", "natalia@mail.com", "secret", "secret", null);
+        UserDTO userDTO = new UserDTO("newnick", "natalia@mail.com", "secret", "secret");
         User existingUser = new User(1L, "natalia", "natalia@mail.com", "encoded", Role.USER, java.util.List.of());
 
         when(userRepository.findByNickname("newnick")).thenReturn(Optional.empty());
@@ -96,7 +96,7 @@ class UserServiceTest {
 
     @Test
     void createUserRejectsPasswordMismatch() {
-        UserDTO userDTO = new UserDTO("natalia", "natalia@mail.com", "secret", "other", null);
+        UserDTO userDTO = new UserDTO("natalia", "natalia@mail.com", "secret", "other");
 
         when(userRepository.findByNickname("natalia")).thenReturn(Optional.empty());
         when(userRepository.findByEmail("natalia@mail.com")).thenReturn(Optional.empty());
@@ -110,36 +110,36 @@ class UserServiceTest {
     }
 
     @Test
-    void authenticateUserReturnsTrueForValidCredentials() {
+    void authenticateReturnsUserForValidCredentials() {
         User existingUser = new User(1L, "natalia", "natalia@mail.com", "encoded", Role.USER, java.util.List.of());
 
         when(userRepository.findByEmail("natalia@mail.com")).thenReturn(Optional.of(existingUser));
         when(passwordEncoder.matches("secret", "encoded")).thenReturn(true);
 
-        boolean authenticated = userService.authenticateUser("natalia@mail.com", "secret");
+        Optional<User> authenticated = userService.authenticate("natalia@mail.com", "secret");
 
-        assertThat(authenticated).isTrue();
+        assertThat(authenticated).containsSame(existingUser);
     }
 
     @Test
-    void authenticateUserReturnsFalseForWrongPassword() {
+    void authenticateReturnsEmptyForWrongPassword() {
         User existingUser = new User(1L, "natalia", "natalia@mail.com", "encoded", Role.USER, java.util.List.of());
 
         when(userRepository.findByEmail("natalia@mail.com")).thenReturn(Optional.of(existingUser));
         when(passwordEncoder.matches("wrong", "encoded")).thenReturn(false);
 
-        boolean authenticated = userService.authenticateUser("natalia@mail.com", "wrong");
+        Optional<User> authenticated = userService.authenticate("natalia@mail.com", "wrong");
 
-        assertThat(authenticated).isFalse();
+        assertThat(authenticated).isEmpty();
     }
 
     @Test
-    void authenticateUserReturnsFalseWhenEmailDoesNotExist() {
+    void authenticateReturnsEmptyWhenEmailDoesNotExist() {
         when(userRepository.findByEmail("missing@mail.com")).thenReturn(Optional.empty());
 
-        boolean authenticated = userService.authenticateUser("missing@mail.com", "secret");
+        Optional<User> authenticated = userService.authenticate("missing@mail.com", "secret");
 
-        assertThat(authenticated).isFalse();
+        assertThat(authenticated).isEmpty();
         verify(passwordEncoder, never()).matches(any(), any());
     }
 }

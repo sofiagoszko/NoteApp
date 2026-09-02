@@ -24,6 +24,7 @@ import com.hirelens.noteapp.models.Note;
 import com.hirelens.noteapp.models.User;
 import com.hirelens.noteapp.repositories.NoteRepository;
 import com.hirelens.noteapp.repositories.UserRepository;
+import com.hirelens.noteapp.security.JwtService;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -38,10 +39,17 @@ class BackendIntegrationTest {
     @Autowired
     private NoteRepository noteRepository;
 
+    @Autowired
+    private JwtService jwtService;
+
     @BeforeEach
     void cleanDatabase() {
         noteRepository.deleteAll();
         userRepository.deleteAll();
+    }
+
+    private String bearer(User user) {
+        return "Bearer " + jwtService.generateToken(user);
     }
 
     @Test
@@ -57,8 +65,9 @@ class BackendIntegrationTest {
                                 }
                                 """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.nickname").value("natalia"))
-                .andExpect(jsonPath("$.email").value("natalia@mail.com"));
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.user.nickname").value("natalia"))
+                .andExpect(jsonPath("$.user.email").value("natalia@mail.com"));
 
         User persistedUser = userRepository.findByEmail("natalia@mail.com").orElseThrow();
         assertThat(persistedUser.getNickname()).isEqualTo("natalia");
@@ -79,9 +88,10 @@ class BackendIntegrationTest {
                                 }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.nickname").value("natalia"))
-                .andExpect(jsonPath("$.email").value("natalia@mail.com"))
-                .andExpect(jsonPath("$.role").value("USER"));
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.user.nickname").value("natalia"))
+                .andExpect(jsonPath("$.user.email").value("natalia@mail.com"))
+                .andExpect(jsonPath("$.user.role").value("USER"));
 
         mockMvc.perform(post("/api/users/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -101,7 +111,7 @@ class BackendIntegrationTest {
         User user = registerUser("natalia", "natalia@mail.com", "secret");
 
         mockMvc.perform(post("/api/notes/users/{userId}/notes", user.getId())
-                        .header("X-User-Id", user.getId())
+                        .header("Authorization", bearer(user))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -121,13 +131,13 @@ class BackendIntegrationTest {
 
         mockMvc.perform(get("/api/notes/users/{userId}/active", user.getId())
                         .param("active", "true")
-                        .header("X-User-Id", user.getId()))
+                        .header("Authorization", bearer(user)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(note.getId()))
                 .andExpect(jsonPath("$[0].title").value("Titulo inicial"));
 
         mockMvc.perform(put("/api/notes/users/{userId}/notes/{noteId}", user.getId(), note.getId())
-                        .header("X-User-Id", user.getId())
+                        .header("Authorization", bearer(user))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -145,7 +155,7 @@ class BackendIntegrationTest {
         assertThat(editedNote.getUpdatedAt()).isNotNull();
 
         mockMvc.perform(patch("/api/notes/users/{userId}/notes/{noteId}/toggle-active", user.getId(), note.getId())
-                        .header("X-User-Id", user.getId()))
+                        .header("Authorization", bearer(user)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.message").value("estado de la nota actualizado"));
@@ -154,7 +164,7 @@ class BackendIntegrationTest {
 
         mockMvc.perform(get("/api/notes/users/{userId}/active", user.getId())
                         .param("active", "false")
-                        .header("X-User-Id", user.getId()))
+                        .header("Authorization", bearer(user)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(note.getId()))
                 .andExpect(jsonPath("$[0].active").value(false));
@@ -167,26 +177,28 @@ class BackendIntegrationTest {
         Note note = createNote(owner, "Privada", "Contenido privado");
 
         mockMvc.perform(get("/api/notes/users/{userId}/notes/{noteId}", owner.getId(), note.getId())
-                        .header("X-User-Id", requester.getId()))
+                        .header("Authorization", bearer(requester)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").value("Acceso denegado"));
     }
 
     @Test
-    void nonOwnerCannotOperateOwnedNoteUsingOwnUserPath() throws Exception {
+    void nonOwnerCannotOperateOwnedNoteUsingOwnPath() throws Exception {
         User owner = registerUser("owner", "owner@mail.com", "secret");
         User requester = registerUser("requester", "requester@mail.com", "secret");
         Note note = createNote(owner, "Privada", "Contenido privado");
 
+        // El path apunta al propio usuario (pasa @PreAuthorize) pero la nota es de otro dueño:
+        // NoteService.getNoteForUser filtra por dueño y la request termina en 404.
         mockMvc.perform(get("/api/notes/users/{userId}/notes/{noteId}", requester.getId(), note.getId())
-                        .header("X-User-Id", requester.getId()))
-                .andExpect(status().isForbidden())
+                        .header("Authorization", bearer(requester)))
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.message").value("Acceso denegado"));
+                .andExpect(jsonPath("$.message").value("Nota no encontrada"));
 
         mockMvc.perform(put("/api/notes/users/{userId}/notes/{noteId}", requester.getId(), note.getId())
-                        .header("X-User-Id", requester.getId())
+                        .header("Authorization", bearer(requester))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -194,15 +206,15 @@ class BackendIntegrationTest {
                                   "content": "Intento editar nota ajena"
                                 }
                                 """))
-                .andExpect(status().isForbidden())
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.message").value("Acceso denegado"));
+                .andExpect(jsonPath("$.message").value("Nota no encontrada"));
 
         mockMvc.perform(delete("/api/notes/users/{userId}/notes/{noteId}", requester.getId(), note.getId())
-                        .header("X-User-Id", requester.getId()))
-                .andExpect(status().isForbidden())
+                        .header("Authorization", bearer(requester)))
+                .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.message").value("Acceso denegado"));
+                .andExpect(jsonPath("$.message").value("Nota no encontrada"));
 
         Note persistedNote = noteRepository.findById(note.getId()).orElseThrow();
         assertThat(persistedNote.getTitle()).isEqualTo("Privada");
@@ -227,7 +239,7 @@ class BackendIntegrationTest {
 
     private Note createNote(User user, String title, String content) throws Exception {
         mockMvc.perform(post("/api/notes/users/{userId}/notes", user.getId())
-                        .header("X-User-Id", user.getId())
+                        .header("Authorization", bearer(user))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
