@@ -248,4 +248,31 @@ Al iniciar la aplicación por primera vez se crea automáticamente un usuario ad
 - Búsqueda de notas por texto libre
 - Categorías personalizadas por usuario
 - Filtros por categorías
+
+## Jenkins
+
+El proyecto incluye un `Jenkinsfile` en la raíz del repositorio para ejecutar el pipeline de integración continua.
+
+### Requisitos
+
+Antes de iniciar Jenkins es necesario tener instalado:
+
+- Java 21 o superior
+- Docker Desktop
+- Git
+- Node.js
+- npm
+
+Docker Desktop debe estar iniciado antes de ejecutar el pipeline.
+
+### Iniciar Jenkins localmente
+
+Descargar `Jenkins.war` desde el sitio oficial de Jenkins.
+
+Desde la carpeta donde se encuentre el archivo ejecutar:
+
+```bash
+java -jar Jenkins.war --httpPort=8081
+
+(acá usamos este puerto porque el 8080 lo ocupa la app)
  
