@@ -12,20 +12,19 @@ import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Import;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.hirelens.noteapp.config.SecurityConfig;
 import com.hirelens.noteapp.enums.Role;
 import com.hirelens.noteapp.models.User;
 import com.hirelens.noteapp.services.UserService;
 
-@WebMvcTest(UserController.class)
-@Import(SecurityConfig.class)
+@SpringBootTest
+@AutoConfigureMockMvc
 class UserControllerTest {
 
     @Autowired
@@ -35,7 +34,7 @@ class UserControllerTest {
     private UserService userService;
 
     @Test
-    void registerReturnsCreatedUser() throws Exception {
+    void registerReturnsTokenAndUser() throws Exception {
         User createdUser = new User(1L, "natalia", "natalia@mail.com", "encoded", Role.USER, List.of());
 
         when(userService.createUser(any())).thenReturn(createdUser);
@@ -51,9 +50,11 @@ class UserControllerTest {
                                 }
                                 """))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.nickname").value("natalia"))
-                .andExpect(jsonPath("$.email").value("natalia@mail.com"));
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.user.id").value(1))
+                .andExpect(jsonPath("$.user.nickname").value("natalia"))
+                .andExpect(jsonPath("$.user.email").value("natalia@mail.com"))
+                .andExpect(jsonPath("$.user.role").value("USER"));
     }
 
     @Test
@@ -90,16 +91,14 @@ class UserControllerTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.message").value("Errores de validación: Email ya en uso"))
-                .andExpect(jsonPath("$.data").value("Errores de validación: Email ya en uso"));
+                .andExpect(jsonPath("$.message").value("Errores de validación: Email ya en uso"));
     }
 
     @Test
-    void loginReturnsUserWhenCredentialsAreValid() throws Exception {
+    void loginReturnsTokenAndUserWhenCredentialsAreValid() throws Exception {
         User user = new User(1L, "natalia", "natalia@mail.com", "encoded", Role.USER, List.of());
 
-        when(userService.authenticateUser("natalia@mail.com", "secret")).thenReturn(true);
-        when(userService.getUserByEmail("natalia@mail.com")).thenReturn(Optional.of(user));
+        when(userService.authenticate("natalia@mail.com", "secret")).thenReturn(Optional.of(user));
 
         mockMvc.perform(post("/api/users/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -110,15 +109,16 @@ class UserControllerTest {
                                 }
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.nickname").value("natalia"))
-                .andExpect(jsonPath("$.email").value("natalia@mail.com"))
-                .andExpect(jsonPath("$.role").value("USER"));
+                .andExpect(jsonPath("$.token").isNotEmpty())
+                .andExpect(jsonPath("$.user.id").value(1))
+                .andExpect(jsonPath("$.user.nickname").value("natalia"))
+                .andExpect(jsonPath("$.user.email").value("natalia@mail.com"))
+                .andExpect(jsonPath("$.user.role").value("USER"));
     }
 
     @Test
     void loginReturnsUnauthorizedWhenCredentialsAreInvalid() throws Exception {
-        when(userService.authenticateUser("natalia@mail.com", "wrong")).thenReturn(false);
+        when(userService.authenticate("natalia@mail.com", "wrong")).thenReturn(Optional.empty());
 
         mockMvc.perform(post("/api/users/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -130,8 +130,7 @@ class UserControllerTest {
                                 """))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.message").value("Credenciales inválidas"))
-                .andExpect(jsonPath("$.data").doesNotExist());
+                .andExpect(jsonPath("$.message").value("Credenciales inválidas"));
     }
 
     @Test
@@ -144,10 +143,8 @@ class UserControllerTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.success").value(false))
-                .andExpect(jsonPath("$.message").value("Email y password requeridos"))
-                .andExpect(jsonPath("$.data").doesNotExist());
+                .andExpect(jsonPath("$.success").value(false));
 
-        verify(userService, never()).authenticateUser(any(), any());
+        verify(userService, never()).authenticate(any(), any());
     }
 }

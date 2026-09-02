@@ -24,6 +24,7 @@ const currentUser = {
 
 function renderNotes() {
   localStorage.setItem('user', JSON.stringify(currentUser))
+  localStorage.setItem('token', 'fake-token')
 
   return render(
     <AuthProvider>
@@ -68,7 +69,7 @@ describe('NotesPage', () => {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'X-User-Id': '1',
+        'Authorization': 'Bearer fake-token',
       },
     })
   })
@@ -134,7 +135,7 @@ describe('NotesPage', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-User-Id': '1',
+        'Authorization': 'Bearer fake-token',
       },
       body: JSON.stringify({ title: 'Nueva idea', content: 'Contenido de prueba' }),
     })
@@ -177,7 +178,7 @@ describe('NotesPage', () => {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'X-User-Id': '1',
+        'Authorization': 'Bearer fake-token',
       },
     })
     expect(toast.success).toHaveBeenCalledWith('Nota archivada')
@@ -223,7 +224,7 @@ describe('NotesPage', () => {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'X-User-Id': '1',
+        'Authorization': 'Bearer fake-token',
       },
       body: JSON.stringify({ title: 'Comprar leche', content: 'Pasar por el mercado' }),
     })
@@ -267,7 +268,7 @@ describe('NotesPage', () => {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
-        'X-User-Id': '1',
+        'Authorization': 'Bearer fake-token',
       },
     })
     expect(toast.success).toHaveBeenCalledWith('Nota eliminada')

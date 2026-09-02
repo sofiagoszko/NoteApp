@@ -98,11 +98,9 @@ public class UserService {
         userRepository.deleteById(id);
     }
 
-    public boolean authenticateUser(String email, String password) {
-        Optional<User> userOpt = getUserByEmail(email);
-        return userOpt
-            .map(user -> passwordEncoder.matches(password, user.getPassword()))
-            .orElse(false);
+    public Optional<User> authenticate(String email, String rawPassword) {
+        return getUserByEmail(email)
+            .filter(user -> passwordEncoder.matches(rawPassword, user.getPassword()));
     }
 
     public List<Note> getNotesByUser(Long userId) {
@@ -124,9 +122,4 @@ public class UserService {
     public Optional<User> getUserById(Long id) {
         return userRepository.findById(id);
     }
-
-    public boolean isAdmin(Long userId) {
-        Optional<User> userOpt = getUserById(userId);
-        return userOpt.map(user -> user.getRole() == Role.ADMIN).orElse(false);
-    }   
 }

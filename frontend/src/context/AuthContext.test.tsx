@@ -26,8 +26,8 @@ function AuthConsumer() {
     <div>
       <span>User: {user?.nickname ?? 'none'}</span>
       <span>Admin: {isAdmin ? 'yes' : 'no'}</span>
-      <button onClick={() => loginUser(regularUser)}>Login user</button>
-      <button onClick={() => loginUser(adminUser)}>Login admin</button>
+      <button onClick={() => loginUser(regularUser, 'fake-token')}>Login user</button>
+      <button onClick={() => loginUser(adminUser, 'fake-token')}>Login admin</button>
       <button onClick={logoutUser}>Logout</button>
     </div>
   )
@@ -62,7 +62,7 @@ describe('AuthContext', () => {
     expect(screen.getByText('Admin: yes')).toBeInTheDocument()
   })
 
-  test('login stores user and updates context state', async () => {
+  test('login stores user and token and updates context state', async () => {
     const user = userEvent.setup()
 
     renderAuthContext()
@@ -72,6 +72,7 @@ describe('AuthContext', () => {
     expect(screen.getByText('User: natalia')).toBeInTheDocument()
     expect(screen.getByText('Admin: no')).toBeInTheDocument()
     expect(localStorage.getItem('user')).toBe(JSON.stringify(regularUser))
+    expect(localStorage.getItem('token')).toBe('fake-token')
   })
 
   test('login exposes admin derived state for admin users', async () => {
@@ -86,9 +87,10 @@ describe('AuthContext', () => {
     expect(localStorage.getItem('user')).toBe(JSON.stringify(adminUser))
   })
 
-  test('logout removes stored user and clears context state', async () => {
+  test('logout removes stored user and token and clears context state', async () => {
     const user = userEvent.setup()
     localStorage.setItem('user', JSON.stringify(regularUser))
+    localStorage.setItem('token', 'fake-token')
 
     renderAuthContext()
 
@@ -97,5 +99,6 @@ describe('AuthContext', () => {
     expect(screen.getByText('User: none')).toBeInTheDocument()
     expect(screen.getByText('Admin: no')).toBeInTheDocument()
     expect(localStorage.getItem('user')).toBeNull()
+    expect(localStorage.getItem('token')).toBeNull()
   })
 })
