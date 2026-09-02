@@ -11,4 +11,5 @@ services:
 
 networks:
   noteapp-network:
-    external: true
+    name: noteapp-network
+    driver: bridge
