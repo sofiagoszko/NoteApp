@@ -131,7 +131,8 @@ class NoteControllerTest {
 
     @Test
     void getNoteByIdReturnsNoteForUser() throws Exception {
-        Note note = new Note(10L, "Titulo", "Contenido", null, null, true, null);
+        User user = new User(1L, "natalia", "natalia@mail.com", "encoded", Role.USER, List.of());
+        Note note = new Note(10L, "Titulo", "Contenido", null, null, true, user);
 
         when(noteService.getNoteById(10L)).thenReturn(Optional.of(note));
 
@@ -238,7 +239,8 @@ class NoteControllerTest {
 
     @Test
     void editNoteReturnsOkWhenNoteExistsAndRequesterCanAccess() throws Exception {
-        Note note = new Note(10L, "Viejo", "Contenido viejo", null, null, true, null);
+        User user = new User(1L, "natalia", "natalia@mail.com", "encoded", Role.USER, List.of());
+        Note note = new Note(10L, "Viejo", "Contenido viejo", null, null, true, user);
 
         when(noteService.getNoteById(10L)).thenReturn(Optional.of(note));
 
@@ -265,7 +267,8 @@ class NoteControllerTest {
 
     @Test
     void editNoteReturnsBadRequestWhenServiceRejectsEdit() throws Exception {
-        Note note = new Note(10L, "Viejo", "Contenido viejo", null, null, true, null);
+        User user = new User(1L, "natalia", "natalia@mail.com", "encoded", Role.USER, List.of());
+        Note note = new Note(10L, "Viejo", "Contenido viejo", null, null, true, user);
 
         when(noteService.getNoteById(10L)).thenReturn(Optional.of(note));
         org.mockito.Mockito.doThrow(new BadRequestException("Nota no encontrada"))
@@ -285,7 +288,8 @@ class NoteControllerTest {
 
     @Test
     void toggleActiveReturnsOkWhenNoteExistsAndRequesterCanAccess() throws Exception {
-        Note note = new Note(10L, "Titulo", "Contenido", null, null, true, null);
+        User user = new User(1L, "natalia", "natalia@mail.com", "encoded", Role.USER, List.of());
+        Note note = new Note(10L, "Titulo", "Contenido", null, null, true, user);
 
         when(noteService.getNoteById(10L)).thenReturn(Optional.of(note));
 
@@ -300,7 +304,8 @@ class NoteControllerTest {
 
     @Test
     void deleteNoteReturnsOkWhenNoteExistsAndRequesterCanAccess() throws Exception {
-        Note note = new Note(10L, "Titulo", "Contenido", null, null, true, null);
+        User user = new User(1L, "natalia", "natalia@mail.com", "encoded", Role.USER, List.of());
+        Note note = new Note(10L, "Titulo", "Contenido", null, null, true, user);
 
         when(noteService.getNoteById(10L)).thenReturn(Optional.of(note));
 

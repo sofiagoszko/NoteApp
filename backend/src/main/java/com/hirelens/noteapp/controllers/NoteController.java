@@ -72,7 +72,7 @@ public class NoteController {
  
         Note note = noteOpt.get();
 
-        if (!canAccess(requesterId, userId)) {
+        if (!canAccessNote(requesterId, userId, note)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new Response<>(false, "Acceso denegado", null));
         }
  
@@ -103,7 +103,7 @@ public class NoteController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new Response<>(false, "Nota no encontrada", null));
         }
  
-        if (!canAccess(requesterId, userId)) {
+        if (!canAccessNote(requesterId, userId, noteOpt.get())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new Response<>(false, "Acceso denegado", null));
         }
  
@@ -124,7 +124,7 @@ public class NoteController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new Response<>(false, "Nota no encontrada", null));
         }
  
-        if (!canAccess(requesterId, userId)) {
+        if (!canAccessNote(requesterId, userId, noteOpt.get())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new Response<>(false, "Acceso denegado", null));
         }
  
@@ -145,7 +145,7 @@ public class NoteController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new Response<>(false, "Nota no encontrada", null));
         }
  
-        if (!canAccess(requesterId, userId)) {
+        if (!canAccessNote(requesterId, userId, noteOpt.get())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new Response<>(false, "Acceso denegado", null));
         }
  
@@ -158,5 +158,15 @@ public class NoteController {
             return true;
         } 
         return userService.isAdmin(requesterId);
+    }
+
+    private boolean canAccessNote(Long requesterId, Long targetUserId, Note note) {
+        if (userService.isAdmin(requesterId)) {
+            return true;
+        }
+
+        return requesterId.equals(targetUserId)
+                && note.getUser() != null
+                && note.getUser().getId().equals(targetUserId);
     }
 }
