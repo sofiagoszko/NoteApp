@@ -59,7 +59,14 @@ public class NoteController {
         if (noteOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new Response<>(false, "Nota no encontrada", null));
         }
-        return ResponseEntity.ok(noteOpt.get());
+ 
+        Note note = noteOpt.get();
+
+        if (!canAccessNote(requesterId, userId, note)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new Response<>(false, "Acceso denegado", null));
+        }
+ 
+        return ResponseEntity.ok(note);
     }
 
     // POST /api/notes/users/{userId}/notes
@@ -83,9 +90,17 @@ public class NoteController {
         if (noteService.getNoteForUser(noteId, userId).isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new Response<>(false, "Nota no encontrada", null));
         }
-
-        noteService.editNote(noteId, noteDTO);
-        return ResponseEntity.ok(new Response<>(true, "Nota actualizada", noteDTO));
+ 
+        if (!canAccessNote(requesterId, userId, noteOpt.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new Response<>(false, "Acceso denegado", null));
+        }
+ 
+        try {
+            noteService.editNote(noteId, noteDTO);
+            return ResponseEntity.ok(new Response<>(true, "Nota actualizada", noteDTO));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
     }
 
     // PATCH /api/notes/users/{userId}/notes/{noteId}/toggle-active
@@ -96,9 +111,18 @@ public class NoteController {
         if (noteOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new Response<>(false, "Nota no encontrada", null));
         }
-
-        noteService.editStatusNote(noteId);
-        return ResponseEntity.ok(new Response<>(true, "estado de la nota actualizado", noteOpt));
+ 
+        if (!canAccessNote(requesterId, userId, noteOpt.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new Response<>(false, "Acceso denegado", null));
+        }
+ 
+        try {
+            noteService.editStatusNote(noteId);
+            return ResponseEntity.ok(new Response<>(true, "estado de la nota actualizado", noteOpt));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+        
     }
 
     // DELETE /api/notes/users/{userId}/notes/{noteId}
@@ -109,8 +133,29 @@ public class NoteController {
         if (noteOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new Response<>(false, "Nota no encontrada", null));
         }
-
+ 
+        if (!canAccessNote(requesterId, userId, noteOpt.get())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new Response<>(false, "Acceso denegado", null));
+        }
+ 
         noteService.deleteNote(noteId);
         return ResponseEntity.ok(new Response<>(true, "Nota eliminada", noteOpt));
+    }
+
+    private boolean canAccess(Long requesterId, Long targetUserId) {
+        if (requesterId.equals(targetUserId)){
+            return true;
+        } 
+        return userService.isAdmin(requesterId);
+    }
+
+    private boolean canAccessNote(Long requesterId, Long targetUserId, Note note) {
+        if (userService.isAdmin(requesterId)) {
+            return true;
+        }
+
+        return requesterId.equals(targetUserId)
+                && note.getUser() != null
+                && note.getUser().getId().equals(targetUserId);
     }
 }
