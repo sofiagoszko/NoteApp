@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -170,6 +171,42 @@ class BackendIntegrationTest {
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.message").value("Acceso denegado"));
+    }
+
+    @Test
+    void nonOwnerCannotOperateOwnedNoteUsingOwnUserPath() throws Exception {
+        User owner = registerUser("owner", "owner@mail.com", "secret");
+        User requester = registerUser("requester", "requester@mail.com", "secret");
+        Note note = createNote(owner, "Privada", "Contenido privado");
+
+        mockMvc.perform(get("/api/notes/users/{userId}/notes/{noteId}", requester.getId(), note.getId())
+                        .header("X-User-Id", requester.getId()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Acceso denegado"));
+
+        mockMvc.perform(put("/api/notes/users/{userId}/notes/{noteId}", requester.getId(), note.getId())
+                        .header("X-User-Id", requester.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "Intento editado",
+                                  "content": "Intento editar nota ajena"
+                                }
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Acceso denegado"));
+
+        mockMvc.perform(delete("/api/notes/users/{userId}/notes/{noteId}", requester.getId(), note.getId())
+                        .header("X-User-Id", requester.getId()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.message").value("Acceso denegado"));
+
+        Note persistedNote = noteRepository.findById(note.getId()).orElseThrow();
+        assertThat(persistedNote.getTitle()).isEqualTo("Privada");
+        assertThat(persistedNote.getContent()).isEqualTo("Contenido privado");
     }
 
     private User registerUser(String nickname, String email, String password) throws Exception {
