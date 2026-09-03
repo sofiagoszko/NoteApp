@@ -57,9 +57,10 @@ pipeline {
         stage('Frontend Validation') {
             steps {
                 dir('frontend') {
-                    echo 'No se encontró un script de tests; se validará el build de producción.'
                     bat '''@echo off
                         call npm.cmd ci
+                        if errorlevel 1 exit /b %errorlevel%
+                        call npm.cmd run test:ci
                         if errorlevel 1 exit /b %errorlevel%
                         call npm.cmd run build
                     '''
@@ -112,6 +113,24 @@ pipeline {
                     if (-not $healthy) {
                         docker compose @compose logs --tail=100 db
                         throw 'MySQL no alcanzó el estado healthy.'
+                    }
+
+                    $backendReady = $false
+                    for ($attempt = 1; $attempt -le 30; $attempt++) {
+                        try {
+                            Invoke-WebRequest `
+                                -Uri 'http://localhost:8080/actuator/health' `
+                                -UseBasicParsing `
+                                -TimeoutSec 10 | Out-Null
+                            $backendReady = $true
+                            break
+                        } catch {
+                            Start-Sleep -Seconds 3
+                        }
+                    }
+                    if (-not $backendReady) {
+                        docker compose @compose logs --tail=100 backend
+                        throw 'El backend no respondió correctamente por HTTP.'
                     }
 
                     $frontendReady = $false
