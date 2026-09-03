@@ -167,9 +167,15 @@ pipeline {
     }
 
     post {
-        success {
-            echo 'NoteApp fue validada y desplegada correctamente.'
+      success {
+         script {
+            if (env.BRANCH_NAME == 'dev') {
+              echo 'NoteApp fue validada y desplegada correctamente en DEV.'
+            } else {
+                echo "La rama ${env.BRANCH_NAME} fue validada correctamente. No se realizó deploy."
         }
+    }
+}
         failure {
             echo 'El pipeline de NoteApp falló durante una etapa de validación, construcción, despliegue o health check.'
         }
