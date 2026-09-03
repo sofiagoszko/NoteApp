@@ -69,12 +69,18 @@ pipeline {
         }
 
         stage('Docker Build') {
+            when {
+              branch 'dev'
+    }
             steps {
                 bat 'docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml build'
             }
         }
 
         stage('Stop Previous Version') {
+             when {
+                branch 'dev'
+                }
             steps {
                 // No usa -v, por lo que conserva los datos de MySQL.
                 bat(returnStatus: true, script: 'docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml down')
@@ -82,12 +88,18 @@ pipeline {
         }
 
         stage('Deploy') {
+            when {
+             branch 'dev'
+         }
             steps {
                 bat 'docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml up --build -d'
             }
         }
 
         stage('Health Check') {
+             when {
+                branch 'dev'
+    }
             steps {
                 powershell '''
                     $ErrorActionPreference = 'Stop'
