@@ -18,7 +18,7 @@ export default function HomePage() {
     const cards: Card[] = [
         { title: "Creá notas", desc: "Escribí y editá tus ideas en segundos", color: "#FF6B6B" },
         { title: "Archivá", desc: "Guardá las notas que ya no necesitás ver", color: "#4ECDC4" },
-        { title: "Filtrá", desc: "Encontrá lo que buscás por categoría", color: "#A855F7" },
+        { title: "Filtrá", desc: "Encontrá lo que buscás por categoría", color: "#7c04ed" },
     ]
 
     return (
@@ -26,7 +26,7 @@ export default function HomePage() {
 
         <FloatingBlob style={{ width: 400, height: 400, background: "#FF6B6B", top: -100, right: -100 }} />
         <FloatingBlob style={{ width: 300, height: 300, background: "#4ECDC4", bottom: 100, left: -80 }} />
-        <FloatingBlob style={{ width: 200, height: 200, background: "#A855F7", top: "40%", left: "50%" }} />
+        <FloatingBlob style={{ width: 200, height: 200, background: "#7c04ed", top: "40%", left: "50%" }} />
 
         {/* Navbar */}
         {user ? <Navbar /> : <GuestNavbar />}
