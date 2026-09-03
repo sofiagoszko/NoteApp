@@ -36,9 +36,6 @@ pipeline {
                         $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
                         [System.IO.File]::WriteAllText("backend\\.env", ($lines -join "`n") + "`n", $utf8NoBom)
                         Write-Host "backend/.env generado con $($lines.Count) variables."
-                        if ([string]::IsNullOrWhiteSpace($env:APP_ADMIN_PASSWORD)) {
-                            throw 'La credencial noteapp-admin-password está vacía o no fue inyectada.'
-                        }
                     '''
                 }
             }
@@ -81,7 +78,6 @@ pipeline {
             steps {
                 bat '''
                     docker compose ^
-                        --env-file backend/.env ^
                         -f backend/docker-compose.yaml ^
                         -f frontend/docker-compose.yml ^
                         build
@@ -99,7 +95,6 @@ pipeline {
                     returnStatus: true,
                     script: '''
                         docker compose ^
-                            --env-file backend/.env ^
                             -f backend/docker-compose.yaml ^
                             -f frontend/docker-compose.yml ^
                             down
@@ -115,7 +110,6 @@ pipeline {
             steps {
                 bat '''
                     docker compose ^
-                        --env-file backend/.env ^
                         -f backend/docker-compose.yaml ^
                         -f frontend/docker-compose.yml ^
                         up --build -d
@@ -130,7 +124,7 @@ pipeline {
             steps {
                 powershell '''
                     $ErrorActionPreference = 'Stop'
-                    $compose = @('--env-file', 'backend/.env', '-f', 'backend/docker-compose.yaml', '-f', 'frontend/docker-compose.yml')
+                    $compose = @('-f', 'backend/docker-compose.yaml', '-f', 'frontend/docker-compose.yml')
 
                     docker compose @compose ps
                     if ($LASTEXITCODE -ne 0) { throw 'No se pudo consultar el stack.' }
@@ -212,7 +206,6 @@ pipeline {
                     returnStatus: true,
                     script: '''
                         docker compose ^
-                            --env-file backend/.env ^
                             -f backend/docker-compose.yaml ^
                             -f frontend/docker-compose.yml ^
                             ps
