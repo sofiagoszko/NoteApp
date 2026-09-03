@@ -57,9 +57,10 @@ pipeline {
         stage('Frontend Validation') {
             steps {
                 dir('frontend') {
-                    echo 'No se encontró un script de tests; se validará el build de producción.'
                     bat '''@echo off
                         call npm.cmd ci
+                        if errorlevel 1 exit /b %errorlevel%
+                        call npm.cmd run test:ci
                         if errorlevel 1 exit /b %errorlevel%
                         call npm.cmd run build
                     '''
@@ -68,12 +69,18 @@ pipeline {
         }
 
         stage('Docker Build') {
+            when {
+                branch 'dev'
+            }
             steps {
                 bat 'docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml build'
             }
         }
 
         stage('Stop Previous Version') {
+            when {
+                branch 'dev'
+            }
             steps {
                 // No usa -v, por lo que conserva los datos de MySQL.
                 bat(returnStatus: true, script: 'docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml down')
@@ -81,12 +88,18 @@ pipeline {
         }
 
         stage('Deploy') {
+            when {
+                branch 'dev'
+            }
             steps {
                 bat 'docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml up --build -d'
             }
         }
 
         stage('Health Check') {
+            when {
+                branch 'dev'
+            }
             steps {
                 powershell '''
                     $ErrorActionPreference = 'Stop'
@@ -114,6 +127,24 @@ pipeline {
                         throw 'MySQL no alcanzó el estado healthy.'
                     }
 
+                    $backendReady = $false
+                    for ($attempt = 1; $attempt -le 30; $attempt++) {
+                        try {
+                            Invoke-WebRequest `
+                                -Uri 'http://localhost:8080/actuator/health' `
+                                -UseBasicParsing `
+                                -TimeoutSec 10 | Out-Null
+                            $backendReady = $true
+                            break
+                        } catch {
+                            Start-Sleep -Seconds 3
+                        }
+                    }
+                    if (-not $backendReady) {
+                        docker compose @compose logs --tail=100 backend
+                        throw 'El backend no respondió correctamente por HTTP.'
+                    }
+
                     $frontendReady = $false
                     for ($attempt = 1; $attempt -le 20; $attempt++) {
                         try {
@@ -137,7 +168,13 @@ pipeline {
 
     post {
         success {
-            echo 'NoteApp fue validada y desplegada correctamente.'
+            script {
+                if (env.BRANCH_NAME == 'dev') {
+                    echo 'NoteApp fue validada y desplegada correctamente en DEV.'
+                } else {
+                    echo "La rama ${env.BRANCH_NAME} fue validada correctamente. No se realizó deploy."
+                }
+            }
         }
         failure {
             echo 'El pipeline de NoteApp falló durante una etapa de validación, construcción, despliegue o health check.'
