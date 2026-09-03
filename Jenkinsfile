@@ -23,7 +23,7 @@ pipeline {
         stage('Configurar entorno') {
             steps {
                 withCredentials([
-                    string(credentialsId: 'noteapp-jwt-secret', variable: 'APP_JWT_SECRET'),
+                    string(credentialsId: 'noteapp-jwt-secret',    variable: 'APP_JWT_SECRET'),
                     string(credentialsId: 'noteapp-admin-password', variable: 'APP_ADMIN_PASSWORD')
                 ]) {
                     powershell '''
@@ -49,10 +49,7 @@ pipeline {
             }
             post {
                 always {
-                    junit(
-                        allowEmptyResults: true,
-                        testResults: 'backend/target/surefire-reports/*.xml'
-                    )
+                    junit allowEmptyResults: true, testResults: 'backend/target/surefire-reports/*.xml'
                 }
             }
         }
@@ -76,12 +73,7 @@ pipeline {
                 branch 'dev'
             }
             steps {
-                bat '''
-                    docker compose ^
-                        -f backend/docker-compose.yaml ^
-                        -f frontend/docker-compose.yml ^
-                        build
-                '''
+                bat 'docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml build'
             }
         }
 
@@ -91,15 +83,7 @@ pipeline {
             }
             steps {
                 // No usa -v, por lo que conserva los datos de MySQL.
-                bat(
-                    returnStatus: true,
-                    script: '''
-                        docker compose ^
-                            -f backend/docker-compose.yaml ^
-                            -f frontend/docker-compose.yml ^
-                            down
-                    '''
-                )
+                bat(returnStatus: true, script: 'docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml down')
             }
         }
 
@@ -108,12 +92,7 @@ pipeline {
                 branch 'dev'
             }
             steps {
-                bat '''
-                    docker compose ^
-                        -f backend/docker-compose.yaml ^
-                        -f frontend/docker-compose.yml ^
-                        up --build -d
-                '''
+                bat 'docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml up --build -d'
             }
         }
 
@@ -204,12 +183,7 @@ pipeline {
             script {
                 def composeStatus = bat(
                     returnStatus: true,
-                    script: '''
-                        docker compose ^
-                            -f backend/docker-compose.yaml ^
-                            -f frontend/docker-compose.yml ^
-                            ps
-                    '''
+                    script: 'docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml ps'
                 )
                 if (composeStatus != 0) {
                     bat(returnStatus: true, script: 'docker ps')
