@@ -122,14 +122,14 @@ cd backend && docker compose up --build -d   # MySQL + backend en :8080 (MySQL e
 cd frontend && docker compose up --build -d  # frontend (nginx) en :5173
 ```
 
-**Stack completo**, desde la raíz del repo (el backend debe listarse primero, para que las rutas de build de ambos `Dockerfile` se resuelvan bien):
+**Stack completo DEV**, desde la raíz del repo (el backend debe listarse primero, para que las rutas de build de ambos `Dockerfile` se resuelvan bien):
 
 ```bash
 git clone <url-del-repositorio>
 cd <nombre-del-repo>
-cp backend/.env.example backend/.env      # y completar APP_JWT_SECRET
+cp backend/.env.dev.example backend/.env.dev      # y completar secretos
 
-docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml up --build -d
+docker compose --env-file backend/.env.dev -p noteapp-dev -f backend/docker-compose.yaml -f frontend/docker-compose.yml up --build -d
 ```
 
 Con Docker Compose:
@@ -140,10 +140,31 @@ Con Docker Compose:
 
 Para detener:
 ```bash
-docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml down
+docker compose --env-file backend/.env.dev -p noteapp-dev -f backend/docker-compose.yaml -f frontend/docker-compose.yml down
 # Para también borrar los datos de la DB:
-docker compose -f backend/docker-compose.yaml -f frontend/docker-compose.yml down -v
+docker compose --env-file backend/.env.dev -p noteapp-dev -f backend/docker-compose.yaml -f frontend/docker-compose.yml down -v
 ```
+
+**Stack completo PROD local**:
+
+```bash
+cp backend/.env.prod.example backend/.env.prod      # y completar secretos
+
+docker compose --env-file backend/.env.prod -p noteapp-prod -f backend/docker-compose.yaml -f frontend/docker-compose.yml up --build -d
+```
+
+Para detener PROD sin borrar datos:
+
+```bash
+docker compose --env-file backend/.env.prod -p noteapp-prod -f backend/docker-compose.yaml -f frontend/docker-compose.yml down
+```
+
+DEV y PROD pueden estar levantados al mismo tiempo porque usan project names distintos:
+
+| Ambiente | Project name | Frontend | Backend | MySQL host | Base | Volumen DB |
+|----------|--------------|----------|---------|------------|------|------------|
+| DEV | `noteapp-dev` | `http://localhost:5173` | `http://localhost:8080` | `localhost:3307` | `noteapp_dev` | `noteapp-dev_noteapp-db-data` |
+| PROD local | `noteapp-prod` | `http://localhost:5174` | `http://localhost:8082` | `localhost:3308` | `noteapp_prod` | `noteapp-prod_noteapp-db-data` |
  
 ---
  
@@ -299,22 +320,25 @@ Docker Desktop debe estar iniciado antes de ejecutar el pipeline.
 
 ### Credenciales requeridas
 
-El pipeline genera `backend/.env` a partir de dos credenciales de Jenkins. Antes de la primera corrida, en **Manage Jenkins -> Credentials -> System -> Global credentials -> Add Credentials**, crear ambas con tipo **Secret text**:
+El pipeline genera `backend/.env.dev` o `backend/.env.prod` según la rama. Antes de la primera corrida, en **Manage Jenkins -> Credentials -> System -> Global credentials -> Add Credentials**, crear las credenciales como **Secret text**:
 
-| ID | Valor |
-|----|-------|
-| `noteapp-jwt-secret` | un secreto de mínimo 32 caracteres (`openssl rand -base64 48`) |
-| `noteapp-admin-password` | la contraseña para `admin@noteapp.com` |
+| ID | Ambiente | Valor |
+|----|----------|-------|
+| `noteapp-dev-jwt-secret` | DEV | secreto JWT de mínimo 32 caracteres (`openssl rand -base64 48`) |
+| `noteapp-dev-admin-password` | DEV | contraseña para `admin@noteapp.com` en DEV |
+| `noteapp-dev-mysql-root-password` | DEV | password root de MySQL DEV |
+| `noteapp-prod-jwt-secret` | PROD | secreto JWT de mínimo 32 caracteres (`openssl rand -base64 48`) |
+| `noteapp-prod-admin-password` | PROD | contraseña para `admin@noteapp.com` en PROD |
+| `noteapp-prod-mysql-root-password` | PROD | password root de MySQL PROD |
 
-El usuario administrador inicial se crea al arrancar el backend si `APP_ADMIN_PASSWORD` tiene valor y si todavía no existe `admin@noteapp.com` en la base.
+El usuario administrador inicial se crea al arrancar el backend si `APP_ADMIN_PASSWORD` tiene valor y si todavía no existe `admin@noteapp.com` en la base del ambiente correspondiente.
 
 ### Cambios realizados en el Jenkinsfile
 
 El pipeline actual realiza estas validaciones y acciones:
 
 1. **Checkout**: obtiene el código desde SCM y muestra el último commit construido.
-2. **Configurar entorno**: lee las credenciales `noteapp-jwt-secret` y `noteapp-admin-password`, y genera `backend/.env` con `APP_JWT_SECRET`, `APP_CORS_ALLOWED_ORIGINS` y `APP_ADMIN_PASSWORD`.
-3. **Backend Test**: ejecuta los tests automatizados del backend con:
+2. **Backend Test**: ejecuta los tests automatizados del backend con:
 
    ```bash
    mvnw.cmd test
@@ -322,7 +346,7 @@ El pipeline actual realiza estas validaciones y acciones:
 
    Luego publica los reportes JUnit desde `backend/target/surefire-reports/*.xml`.
 
-4. **Frontend Validation**: instala dependencias, ejecuta tests automatizados del frontend y compila el build productivo:
+3. **Frontend Validation**: instala dependencias, ejecuta tests automatizados del frontend y compila el build productivo:
 
    ```bat
    call npm.cmd ci
@@ -332,22 +356,83 @@ El pipeline actual realiza estas validaciones y acciones:
 
    El script `test:ci` ejecuta `vitest run`.
 
-5. **Docker Build**: construye las imágenes Docker con los compose de backend y frontend.
-6. **Stop Previous Version**: baja la versión anterior sin borrar volúmenes, por lo que conserva los datos de MySQL.
-7. **Deploy**: levanta el stack con Docker Compose.
-8. **Health Check**: valida que `db`, `backend` y `frontend` estén corriendo; espera a que MySQL esté `healthy`; comprueba el backend por HTTP en:
+4. **Configurar entorno Docker**: solo en `dev` y `main`, genera el archivo de entorno del ambiente:
+   - `dev` -> `backend/.env.dev`
+   - `main` -> `backend/.env.prod`
+5. **Docker Build DEV / PROD**: construye las imágenes Docker con los compose de backend y frontend usando el project name del ambiente.
+6. **Stop Previous Version DEV / PROD**: baja solamente el stack del ambiente actual, sin borrar volúmenes.
+7. **Deploy DEV / PROD**: levanta el stack con Docker Compose.
+8. **Health Check DEV / PROD**: valida que `db`, `backend` y `frontend` estén corriendo; espera a que MySQL esté `healthy`; comprueba el backend por HTTP y luego el frontend.
+
+Health checks DEV:
 
    ```text
    http://localhost:8080/actuator/health
    ```
 
-   y comprueba el frontend en:
+```text
+http://localhost:5173/
+```
 
-   ```text
-   http://localhost:5173/
-   ```
+Health checks PROD local:
 
-Las etapas de build Docker, stop, deploy y health check solo se ejecutan en la rama `dev`. En otras ramas se ejecutan checkout, configuración de entorno, tests backend, tests frontend y build frontend, pero no se despliega.
+```text
+http://localhost:8082/actuator/health
+```
+
+```text
+http://localhost:5174/
+```
+
+Comportamiento por rama:
+
+| Rama | Acciones |
+|------|----------|
+| `feature/*`, `fix/*` y demás | CI solamente: checkout, tests backend, tests frontend y build frontend. No ejecuta Docker build, `down`, deploy ni health check de ambiente. |
+| `dev` | CI + build Docker DEV + `down` de `noteapp-dev` + deploy DEV + health check DEV. |
+| `main` | CI + build Docker PROD + `down` de `noteapp-prod` + deploy PROD + health check PROD. |
+
+Un deploy DEV no toca PROD y un deploy PROD no toca DEV porque todos los comandos Docker Compose usan project names separados: `noteapp-dev` y `noteapp-prod`.
+
+### Comandos Docker por ambiente
+
+Validar configuración DEV:
+
+```powershell
+docker compose --env-file backend/.env.dev -p noteapp-dev -f backend/docker-compose.yaml -f frontend/docker-compose.yml config
+```
+
+Levantar DEV:
+
+```powershell
+docker compose --env-file backend/.env.dev -p noteapp-dev -f backend/docker-compose.yaml -f frontend/docker-compose.yml up --build -d
+```
+
+Bajar DEV sin borrar datos:
+
+```powershell
+docker compose --env-file backend/.env.dev -p noteapp-dev -f backend/docker-compose.yaml -f frontend/docker-compose.yml down
+```
+
+Validar configuración PROD:
+
+```powershell
+docker compose --env-file backend/.env.prod -p noteapp-prod -f backend/docker-compose.yaml -f frontend/docker-compose.yml config
+```
+
+Levantar PROD:
+
+```powershell
+docker compose --env-file backend/.env.prod -p noteapp-prod -f backend/docker-compose.yaml -f frontend/docker-compose.yml up --build -d
+```
+
+Bajar PROD sin borrar datos:
+
+```powershell
+docker compose --env-file backend/.env.prod -p noteapp-prod -f backend/docker-compose.yaml -f frontend/docker-compose.yml down
+```
+
+No usar `down -v` en redeploy normal, porque elimina los volúmenes de MySQL.
 
 ### Iniciar Jenkins localmente
 
