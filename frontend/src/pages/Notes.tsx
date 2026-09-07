@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback} from "react"
+import { useNavigate } from "react-router-dom"
 import { Plus } from "lucide-react"
 import toast from "react-hot-toast"
 import { useAuth } from "../context/AuthContext"
@@ -8,9 +9,11 @@ import NoteCard from "../components/NoteCard"
 import NoteModal from "../components/NoteModal"
 import ConfirmModal from "../components/ConfirmModal"
 
+const UNAUTHORIZED = "unauthorized";
 
 export default function NotesPage() {
-  const { user } = useAuth();
+  const { user, token, logoutUser } = useAuth();
+  const navigate = useNavigate();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(true);
@@ -20,25 +23,40 @@ export default function NotesPage() {
 
   const headers: HeadersInit = useMemo(() => ({
     "Content-Type": "application/json",
-    "X-User-Id": String(user!.id),
-  }), [user]);
+    "Authorization": `Bearer ${token}`,
+  }), [token]);
+
+  const authFetch = useCallback(async (url: string, init: RequestInit = {}) => {
+    const res = await fetch(url, { ...init, headers: { ...headers, ...(init.headers ?? {}) } });
+    if (res.status === 401) {
+      logoutUser();
+      toast.error("Tu sesión expiró, iniciá sesión de nuevo");
+      navigate("/login", { replace: true });
+      throw new Error(UNAUTHORIZED);
+    }
+    return res;
+  }, [headers, logoutUser, navigate]);
+
+  const notifyError = (e: unknown, message: string) => {
+    if (!(e instanceof Error) || e.message !== UNAUTHORIZED) toast.error(message);
+  };
 
   const fetchNotes = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(
+      const res = await authFetch(
         `${BASE_URL}/notes/users/${user!.id}/active?active=${activeTab}`,
-        { method: "GET", headers }
+        { method: "GET" }
       );
       if (!res.ok) throw new Error();
       const data: Note[] = await res.json();
       setNotes(data);
-    } catch {
-      toast.error("Error al cargar las notas");
+    } catch (e) {
+      notifyError(e, "Error al cargar las notas");
     } finally {
       setLoading(false);
     }
-  }, [user, activeTab, BASE_URL, headers]);
+  }, [user, activeTab, BASE_URL, authFetch]);
 
   useEffect(() => {
     fetchNotes();
@@ -46,66 +64,61 @@ export default function NotesPage() {
 
   const handleCreate = async (title: string, content: string) => {
     try {
-      const res = await fetch(`${BASE_URL}/notes/users/${user!.id}/notes`, {
+      const res = await authFetch(`${BASE_URL}/notes/users/${user!.id}/notes`, {
         method: "POST",
-        headers,
         body: JSON.stringify({ title, content }),
       })
       if (!res.ok) throw new Error()
       toast.success("Nota creada");
       setNoteModal({ open: false, noteToEdit: null });
       fetchNotes();
-    } catch {
-      toast.error("Error al crear la nota");
+    } catch (e) {
+      notifyError(e, "Error al crear la nota");
     }
   }
 
   const handleEdit = async (title: string, content: string) => {
     const noteId = noteModal.noteToEdit!.id;
     try {
-      const res = await fetch(`${BASE_URL}/notes/users/${user!.id}/notes/${noteId}`, {
+      const res = await authFetch(`${BASE_URL}/notes/users/${user!.id}/notes/${noteId}`, {
         method: "PUT",
-        headers,
         body: JSON.stringify({ title, content }),
       })
       if (!res.ok) throw new Error();
       toast.success("Nota actualizada");
       setNoteModal({ open: false, noteToEdit: null });
       fetchNotes();
-    } catch {
-      toast.error("Error al actualizar la nota");
+    } catch (e) {
+      notifyError(e, "Error al actualizar la nota");
     }
   }
 
   const handleToggle = async (note: Note) => {
     try {
-      const res = await fetch(
-        `${BASE_URL}/notes/users/${user!.id}/notes/${note.id}/toggle-active`, { 
-          method: "PATCH", 
-          headers,
-        }
+      const res = await authFetch(
+        `${BASE_URL}/notes/users/${user!.id}/notes/${note.id}/toggle-active`,
+        { method: "PATCH" }
       )
       if (!res.ok) throw new Error();
       toast.success(note.active ? "Nota archivada" : "Nota restaurada");
       fetchNotes();
-    } catch {
-      toast.error("Error al cambiar el estado");
+    } catch (e) {
+      notifyError(e, "Error al cambiar el estado");
     }
   }
 
   const handleDelete = async () => {
     const note = confirmModal.note!;
     try {
-      const res = await fetch(`${BASE_URL}/notes/users/${user!.id}/notes/${note.id}`, {
+      const res = await authFetch(`${BASE_URL}/notes/users/${user!.id}/notes/${note.id}`, {
         method: "DELETE",
-        headers,
       })
       if (!res.ok) throw new Error();
       toast.success("Nota eliminada");
       setConfirmModal({ open: false, note: null });
       fetchNotes();
-    } catch {
-      toast.error("Error al eliminar la nota");
+    } catch (e) {
+      notifyError(e, "Error al eliminar la nota");
     }
   }
 

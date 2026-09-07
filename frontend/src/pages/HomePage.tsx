@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom"
-import type { User } from "../types/User"
+import { useAuth } from "../context/AuthContext"
 import Navbar from "../components/Navbar"
 import GuestNavbar from "../components/GuestNavbar"
 
@@ -14,13 +14,12 @@ type Card = {
 }
 
 export default function HomePage() {
+    const { user } = useAuth();
     const cards: Card[] = [
         { title: "Creá notas", desc: "Escribí y editá tus ideas en segundos", color: "#FF6B6B" },
         { title: "Archivá", desc: "Guardá las notas que ya no necesitás ver", color: "#4ECDC4" },
         { title: "Filtrá", desc: "Encontrá lo que buscás por categoría", color: "#A855F7" },
     ]
-    const storedUser = localStorage.getItem("user");
-    const user: User = storedUser ? JSON.parse(storedUser) : null;
 
     return (
     <div className="min-h-screen relative overflow-hidden flex flex-col bg-[#FAFAF8]">
@@ -81,7 +80,7 @@ export default function HomePage() {
         </main>
 
         <footer className="relative z-10 text-center py-6 text-sm text-[#1a1a2e]">
-            Hecho por Sofia Lara Goszko · NoteApp 2026
+            Hecho por Grupo 12 · NoteApp 2026
         </footer>
     </div>
     )

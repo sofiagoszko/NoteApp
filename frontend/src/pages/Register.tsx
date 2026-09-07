@@ -1,6 +1,8 @@
 import { useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import toast from "react-hot-toast"
+import { useAuth } from "../context/AuthContext"
+import type { AuthResponse } from "../types/User"
 
 interface FormState {
   nickname: string;
@@ -11,6 +13,7 @@ interface FormState {
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const { loginUser } = useAuth();
   const [form, setForm] = useState<FormState>({
     nickname: "",
     email: "",
@@ -41,8 +44,10 @@ export default function RegisterPage() {
         toast.error(data?.message ?? data ?? "Error al registrarse")
         return
       }
+      const auth = data as AuthResponse
+      loginUser(auth.user, auth.token)
       toast.success("Cuenta creada. Bienvenido")
-      navigate("/")
+      navigate("/notes")
     } catch {
       toast.error("Error de conexión")
     } finally {

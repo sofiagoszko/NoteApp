@@ -68,4 +68,9 @@ public class NoteService {
     public Optional<Note> getNoteById(Long id) {
         return noteRepository.findById(id);
     }
+
+    public Optional<Note> getNoteForUser(Long noteId, Long userId) {
+        return noteRepository.findById(noteId)
+                .filter(note -> note.getUser() != null && note.getUser().getId().equals(userId));
+    }
 }

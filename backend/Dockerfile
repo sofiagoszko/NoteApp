@@ -10,6 +10,9 @@ COPY --chown=spring:spring pom.xml .
 RUN chmod +x mvnw && ./mvnw dependency:go-offline -q
 
 COPY --chown=spring:spring src src
+
+RUN cp src/main/resources/application.properties.example src/main/resources/application.properties
+
 RUN ./mvnw clean package -DskipTests -q
 
 

@@ -1,0 +1,55 @@
+# Plantilla de configuración. Copiar a application.properties (no versionado) para desarrollo local.
+# En Docker / producción estos valores llegan por variables de entorno.
+
+spring.application.name=noteapp
+server.port=8080
+
+# --- Base de datos ---
+spring.datasource.url=${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/noteapp}
+spring.datasource.username=${SPRING_DATASOURCE_USERNAME:root}
+spring.datasource.password=${SPRING_DATASOURCE_PASSWORD:root}
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+spring.jpa.hibernate.ddl-auto=${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+spring.jpa.show-sql=false
+spring.docker.compose.enabled=false
+
+# --- Logging ---
+logging.level.root=INFO
+logging.level.org.springframework=INFO
+logging.level.com.hirelens.noteapp=INFO
+
+# --- JWT ---
+# OBLIGATORIO. Minimo 32 caracteres. Generar uno aleatorio, por ejemplo:
+#   openssl rand -base64 48
+app.jwt.secret=${APP_JWT_SECRET}
+app.jwt.issuer=${APP_JWT_ISSUER:noteapp}
+app.jwt.expiration=${APP_JWT_EXPIRATION:1h}
+
+# --- CORS: origenes del frontend permitidos (coma-separados, sin barra final) ---
+app.cors.allowed-origins=${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173}
+
+# --- Rate limiting por IP ---
+app.ratelimit.login.capacity=${APP_RATELIMIT_LOGIN_CAPACITY:5}
+app.ratelimit.login.window=${APP_RATELIMIT_LOGIN_WINDOW:15m}
+app.ratelimit.global.capacity=${APP_RATELIMIT_GLOBAL_CAPACITY:100}
+app.ratelimit.global.window=${APP_RATELIMIT_GLOBAL_WINDOW:1m}
+
+# --- Usuario admin inicial: si no se define, no se crea ---
+app.admin.password=${APP_ADMIN_PASSWORD:}
+
+# --- Limites anti-DoS ---
+server.max-http-request-header-size=8KB
+server.tomcat.max-swallow-size=2MB
+server.tomcat.max-http-form-post-size=256KB
+server.tomcat.max-connections=200
+server.tomcat.threads.max=50
+server.tomcat.accept-count=100
+server.tomcat.connection-timeout=5s
+server.tomcat.keep-alive-timeout=15s
+spring.mvc.async.request-timeout=10s
+
+# --- No filtrar internos en las respuestas de error ---
+spring.web.error.include-message=never
+spring.web.error.include-stacktrace=never
+spring.web.error.include-exception=false
+spring.web.error.include-binding-errors=never
