@@ -117,7 +117,7 @@ pipeline {
                 branch 'dev'
             }
             steps {
-                bat 'docker compose --env-file backend/.env.dev -p noteapp-dev -f backend/docker-compose.yaml -f frontend/docker-compose.yml up --build -d'
+                bat 'docker compose --env-file backend/.env.dev -p noteapp-dev -f backend/docker-compose.yaml -f frontend/docker-compose.yml up --no-build -d'
             }
         }
 
@@ -217,7 +217,7 @@ pipeline {
                 branch 'main'
             }
             steps {
-                bat 'docker compose --env-file backend/.env.prod -p noteapp-prod -f backend/docker-compose.yaml -f frontend/docker-compose.yml up --build -d'
+                bat 'docker compose --env-file backend/.env.prod -p noteapp-prod -f backend/docker-compose.yaml -f frontend/docker-compose.yml up --no-build -d'
             }
         }
 
