@@ -5,5 +5,7 @@ target/
 .vscode
 *.iml
 HELP.md
-.env
-.env.example
+.env*
+!.env.example
+!.env.dev.example
+!.env.prod.example
