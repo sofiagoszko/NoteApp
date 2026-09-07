@@ -400,6 +400,59 @@ Comportamiento por rama:
 
 Un deploy DEV no toca PROD y un deploy PROD no toca DEV porque todos los comandos Docker Compose usan project names separados: `noteapp-dev` y `noteapp-prod`.
 
+### Estrategia de ambientes y mejoras futuras
+
+Actualmente el proyecto no tiene un tercer ambiente permanente previo a DEV. Las ramas `feature/*`, `fix/*` y otras ramas de trabajo ejecutan CI solamente: tests del backend, tests del frontend y build del frontend. No realizan un deploy persistente.
+
+Antes de hacer merge de una feature hacia `dev`, el cambio puede validarse mediante:
+
+- tests backend
+- tests frontend
+- build frontend
+- validación de Docker Compose
+- pruebas locales del stack Docker cuando sea necesario
+
+Flujo actual:
+
+```text
+feature/fix
+|
+v
+CI
+|
+v
+DEV
+|
+v
+PROD
+```
+
+Una mejora futura posible sería incorporar pruebas Docker efímeras dentro del pipeline de CI para ramas `feature/*` y `fix/*`. En ese caso Jenkins podría construir las imágenes, levantar temporalmente un stack Docker aislado, ejecutar health checks o smoke tests, y destruir ese stack al finalizar.
+
+Ese stack debería ser temporal y aislado, por ejemplo usando un project name único como `noteapp-ci-${BUILD_NUMBER}`. No debería convertirse necesariamente en un ambiente permanente ni utilizar puertos fijos compartidos.
+
+Si el proyecto creciera o existiera un equipo de QA, también podría incorporarse un tercer ambiente permanente de QA/Staging entre DEV y PROD:
+
+```text
+feature/fix
+|
+v
+CI
+|
+v
+DEV
+|
+v
+QA / Staging
+|
+v
+PROD
+```
+
+Ese ambiente serviría para pruebas funcionales, pruebas de integración, pruebas E2E, validaciones manuales de QA y pruebas de una versión candidata antes de producción.
+
+Agregar QA/Staging implicaría recursos separados: un proyecto Docker propio, por ejemplo `noteapp-qa`, puertos propios, red propia, volumen/base de datos propia, credenciales Jenkins propias y reglas de deploy específicas. No es obligatorio para la arquitectura actual; es una evolución posible si el proyecto aumenta en complejidad.
+
 ### Comandos Docker por ambiente
 
 Validar configuración DEV:
