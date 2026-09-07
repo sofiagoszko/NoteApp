@@ -45,6 +45,7 @@ Se necesitan tener las siguientes herramientas con sus versiones mínimas:
 | Spring Boot Starter Data JPA | 4.0.5 |
 | Spring Boot Starter Security | 4.0.5 |
 | Spring Boot Starter Validation | 4.0.5 |
+| Spring Boot Starter Actuator | 4.0.5 |
 | MySQL Connector/J | 9.x |
 | Lombok | 1.18.x |
 
@@ -282,7 +283,7 @@ automáticamente un usuario administrador. Si no se define, no se crea ninguno.
 
 ## Jenkins
 
-El proyecto incluye un `Jenkinsfile` en la raíz del repositorio para ejecutar el pipeline de integración continua.
+El proyecto incluye un `Jenkinsfile` en la raíz del repositorio para ejecutar el pipeline de integración continua en Windows/Jenkins.
 
 ### Requisitos
 
@@ -298,77 +299,228 @@ Docker Desktop debe estar iniciado antes de ejecutar el pipeline.
 
 ### Credenciales requeridas
 
-El pipeline genera `backend/.env` a partir de dos credenciales de Jenkins. Antes de la primera
-corrida, en **Manage Jenkins → Credentials → System → Global credentials → Add Credentials**,
-crear ambas con tipo **Secret text**:
+El pipeline genera `backend/.env` a partir de dos credenciales de Jenkins. Antes de la primera corrida, en **Manage Jenkins -> Credentials -> System -> Global credentials -> Add Credentials**, crear ambas con tipo **Secret text**:
 
 | ID | Valor |
 |----|-------|
 | `noteapp-jwt-secret` | un secreto de mínimo 32 caracteres (`openssl rand -base64 48`) |
 | `noteapp-admin-password` | la contraseña para `admin@noteapp.com` |
 
+El usuario administrador inicial se crea al arrancar el backend si `APP_ADMIN_PASSWORD` tiene valor y si todavía no existe `admin@noteapp.com` en la base.
+
+### Cambios realizados en el Jenkinsfile
+
+El pipeline actual realiza estas validaciones y acciones:
+
+1. **Checkout**: obtiene el código desde SCM y muestra el último commit construido.
+2. **Configurar entorno**: lee las credenciales `noteapp-jwt-secret` y `noteapp-admin-password`, y genera `backend/.env` con `APP_JWT_SECRET`, `APP_CORS_ALLOWED_ORIGINS` y `APP_ADMIN_PASSWORD`.
+3. **Backend Test**: ejecuta los tests automatizados del backend con:
+
+   ```bash
+   mvnw.cmd test
+   ```
+
+   Luego publica los reportes JUnit desde `backend/target/surefire-reports/*.xml`.
+
+4. **Frontend Validation**: instala dependencias, ejecuta tests automatizados del frontend y compila el build productivo:
+
+   ```bat
+   call npm.cmd ci
+   call npm.cmd run test:ci
+   call npm.cmd run build
+   ```
+
+   El script `test:ci` ejecuta `vitest run`.
+
+5. **Docker Build**: construye las imágenes Docker con los compose de backend y frontend.
+6. **Stop Previous Version**: baja la versión anterior sin borrar volúmenes, por lo que conserva los datos de MySQL.
+7. **Deploy**: levanta el stack con Docker Compose.
+8. **Health Check**: valida que `db`, `backend` y `frontend` estén corriendo; espera a que MySQL esté `healthy`; comprueba el backend por HTTP en:
+
+   ```text
+   http://localhost:8080/actuator/health
+   ```
+
+   y comprueba el frontend en:
+
+   ```text
+   http://localhost:5173/
+   ```
+
+Las etapas de build Docker, stop, deploy y health check solo se ejecutan en la rama `dev`. En otras ramas se ejecutan checkout, configuración de entorno, tests backend, tests frontend y build frontend, pero no se despliega.
+
 ### Iniciar Jenkins localmente
 
 Descargar `Jenkins.war` desde el sitio oficial de Jenkins.
 
-Desde la carpeta donde se encuentre el archivo ejecutar:
+Desde la carpeta donde se encuentre el archivo, ejecutar:
 
 ```bash
 java -jar Jenkins.war --httpPort=8081
+```
 
-(acá usamos este puerto porque el 8080 lo ocupa la app)
+Se usa el puerto `8081` porque el backend de NoteApp usa `8080`.
 
 Luego acceder desde el navegador a:
 
+```text
 http://localhost:8081
+```
 
-La primera vez que se inicia Jenkins solicitará una contraseña inicial de administrador.
+La primera vez que se inicia Jenkins solicitará una contraseña inicial de administrador. En Windows puede obtenerse desde PowerShell con:
 
-En Windows puede obtenerse desde PowerShell con:
-
+```powershell
 Get-Content "$env:USERPROFILE\.jenkins\secrets\initialAdminPassword"
+```
 
 Luego se debe completar la configuración inicial de Jenkins, instalar los plugins recomendados y crear un usuario administrador.
 
-Configuración del Job
+### Configuración del Job
 
-Desde el panel principal de Jenkins seleccionar:
+Desde el panel principal de Jenkins:
 
-New Item
+1. Seleccionar **New Item**.
+2. Ingresar un nombre para el job, por ejemplo `NoteApp`.
+3. Seleccionar **Pipeline**.
+4. En la configuración del pipeline seleccionar:
+   - **Definition**: `Pipeline script from SCM`
+   - **SCM**: `Git`
+5. Configurar como repositorio:
 
-Ingresar un nombre para el Job, por ejemplo:
+   ```text
+   https://github.com/sofiagoszko/NoteApp.git
+   ```
 
-NoteApp
-
-Seleccionar el tipo:
-
-Pipeline
-
-y crear el Job.
-
-En la configuración del Pipeline seleccionar:
-
-Definition: Pipeline script from SCM
-SCM: Git
-
-Configurar como repositorio:
-
-https://github.com/sofiagoszko/NoteApp.git
-
-En la sección Branches to build indicar la rama sobre la cual se ejecutará Jenkins.
+6. En **Branches to build**, indicar la rama sobre la cual se ejecutará Jenkins.
 
 Durante el desarrollo y prueba del pipeline se utilizó:
 
+```text
 */Feature/Jenkins
+```
 
-Una vez que el Jenkinsfile haya sido validado y mergeado, el Job puede configurarse para trabajar sobre:
+Una vez validado y mergeado el `Jenkinsfile`, el job puede configurarse para trabajar sobre:
 
+```text
 */dev
+```
 
-En el campo Script Path indicar:
+En **Script Path** indicar:
 
+```text
 Jenkinsfile
+```
 
-Guardar.
+Guardar y ejecutar el job con **Build now**.
 
-Para ejecutar el job le damos a "Build now"
+### Configuración con Multibranch Pipeline
+
+Otra opción es usar un **Multibranch Pipeline**. Esta configuración es útil cuando Jenkins debe detectar automáticamente ramas nuevas, ejecutar el `Jenkinsfile` de cada rama y mantener el historial separado por branch.
+
+Desde el panel principal de Jenkins:
+
+1. Seleccionar **New Item**.
+2. Ingresar un nombre, por ejemplo `NoteApp Multibranch`.
+3. Seleccionar **Multibranch Pipeline**.
+4. En **Branch Sources**, agregar una fuente:
+   - **GitHub** si está instalado el plugin de GitHub Branch Source.
+   - **Git** si se configura el repositorio manualmente.
+5. Configurar el repositorio:
+
+   ```text
+   https://github.com/sofiagoszko/NoteApp.git
+   ```
+
+6. Si el repositorio es privado, configurar credenciales de GitHub en Jenkins y seleccionarlas en **Credentials**.
+7. En **Behaviors**, dejar habilitado el descubrimiento de ramas. Para este proyecto conviene que Jenkins pueda descubrir al menos:
+   - `Feature/Jenkins`, durante la validación del pipeline.
+   - `dev`, para integración y deploy.
+   - `main`, si se decide agregar deploy productivo más adelante.
+8. En **Build Configuration**, indicar:
+
+   ```text
+   Mode: by Jenkinsfile
+   Script Path: Jenkinsfile
+   ```
+
+9. Guardar y ejecutar **Scan Multibranch Pipeline Now**.
+
+Jenkins va a crear un job interno por cada rama donde encuentre un `Jenkinsfile`.
+
+### Escaneo periódico de GitHub
+
+Además del webhook, el Multibranch Pipeline puede revisar GitHub periódicamente para detectar ramas nuevas o cambios aunque GitHub no haya podido llamar a Jenkins.
+
+En la configuración del Multibranch Pipeline:
+
+1. Abrir **Scan Multibranch Pipeline Triggers**.
+2. Activar:
+
+   ```text
+   Periodically if not otherwise run
+   ```
+
+3. Elegir un intervalo razonable, por ejemplo:
+
+   ```text
+   5 minutes
+   ```
+
+   o:
+
+   ```text
+   15 minutes
+   ```
+
+Esta opción no reemplaza al webhook: el webhook dispara builds casi en tiempo real, mientras que el escaneo periódico funciona como respaldo para que Jenkins no quede desactualizado.
+
+### GitHub Webhook con ngrok
+
+Para que GitHub pueda avisarle a un Jenkins local cada vez que hay un push, Jenkins necesita una URL pública. Una opción para desarrollo es usar ngrok.
+
+1. Iniciar Jenkins localmente en el puerto `8081`:
+
+   ```bash
+   java -jar Jenkins.war --httpPort=8081
+   ```
+
+2. En otra terminal, exponer Jenkins con ngrok:
+
+   ```bash
+   ngrok http 8081
+   ```
+
+3. Copiar la URL HTTPS que muestra ngrok, por ejemplo:
+
+   ```text
+   https://abc123.ngrok-free.app
+   ```
+
+4. En GitHub, entrar al repositorio y abrir:
+
+   ```text
+   Settings -> Webhooks -> Add webhook
+   ```
+
+5. Completar:
+
+   ```text
+   Payload URL: https://abc123.ngrok-free.app/github-webhook/
+   Content type: application/json
+   Events: Just the push event
+   Active: checked
+   ```
+
+6. En Jenkins, asegurarse de que el job tenga habilitado el trigger:
+
+   ```text
+   GitHub hook trigger for GITScm polling
+   ```
+
+7. Guardar el webhook y probar con **Redeliver** desde GitHub o haciendo un push a la rama configurada.
+
+Notas:
+
+- La URL gratuita de ngrok cambia cada vez que se reinicia el túnel, salvo que se use un dominio reservado.
+- Si cambia la URL de ngrok, hay que actualizar el `Payload URL` en GitHub.
+- Jenkins debe estar levantado y el túnel ngrok activo para recibir el webhook.
