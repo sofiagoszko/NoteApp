@@ -107,13 +107,13 @@ NoteApp/
 
 Cada servicio tiene su propio `docker-compose` ([`backend/docker-compose.yaml`](backend/docker-compose.yaml), [`frontend/docker-compose.yml`](frontend/docker-compose.yml)), pensados para levantarse tanto por separado como en conjunto.
 
-> **Requisito**: el backend necesita `APP_JWT_SECRET` (mínimo 32 caracteres). Creá `backend/.env`
-> a partir del ejemplo y completá el secreto:
+> **Requisito**: el backend necesita `APP_JWT_SECRET` (mínimo 32 caracteres) y
+> `MYSQL_ROOT_PASSWORD`. Para Docker Compose usá un archivo por ambiente:
 > ```bash
-> cp backend/.env.example backend/.env
-> # editá backend/.env:  APP_JWT_SECRET=$(openssl rand -base64 48)
+> cp backend/.env.dev.example backend/.env.dev
+> cp backend/.env.prod.example backend/.env.prod
 > ```
-> `docker compose` lee ese `backend/.env` para las variables `${...}` del `docker-compose.yaml`.
+> `docker compose` lee esos archivos con `--env-file` para completar las variables `${...}` de los compose.
 
 **Por separado**:
 
@@ -133,16 +133,15 @@ docker compose --env-file backend/.env.dev -p noteapp-dev -f backend/docker-comp
 ```
 
 Con Docker Compose:
-- MySQL 8 se levanta automáticamente con usuario `root` / password `root`
-- El backend se conecta a la DB dentro de la red interna de Docker (`noteapp-network`, compartida por ambos archivos)
-- El frontend se sirve con nginx en el puerto `5173`, proxyando `/api/` hacia el backend
-- Los datos de la DB persisten en un volumen Docker entre reinicios
+- MySQL 8 se levanta automáticamente con usuario `root` y el password definido en `MYSQL_ROOT_PASSWORD`.
+- El backend se conecta a la DB dentro de la red interna creada por el project name de Docker Compose.
+- DEV usa la red `noteapp-dev_noteapp-network`; PROD local usa `noteapp-prod_noteapp-network`.
+- El frontend se sirve con nginx; en DEV escucha en `5173` y en PROD local en `5174`.
+- Los datos de la DB persisten en volúmenes Docker independientes por ambiente.
 
 Para detener:
 ```bash
 docker compose --env-file backend/.env.dev -p noteapp-dev -f backend/docker-compose.yaml -f frontend/docker-compose.yml down
-# Para también borrar los datos de la DB:
-docker compose --env-file backend/.env.dev -p noteapp-dev -f backend/docker-compose.yaml -f frontend/docker-compose.yml down -v
 ```
 
 **Stack completo PROD local**:
@@ -165,6 +164,13 @@ DEV y PROD pueden estar levantados al mismo tiempo porque usan project names dis
 |----------|--------------|----------|---------|------------|------|------------|
 | DEV | `noteapp-dev` | `http://localhost:5173` | `http://localhost:8080` | `localhost:3307` | `noteapp_dev` | `noteapp-dev_noteapp-db-data` |
 | PROD local | `noteapp-prod` | `http://localhost:5174` | `http://localhost:8082` | `localhost:3308` | `noteapp_prod` | `noteapp-prod_noteapp-db-data` |
+
+Verificación rápida de funcionamiento:
+
+| Ambiente | Backend health | Frontend |
+|----------|----------------|----------|
+| DEV | `http://localhost:8080/actuator/health` | `http://localhost:5173/` |
+| PROD local | `http://localhost:8082/actuator/health` | `http://localhost:5174/` |
  
 ---
  
@@ -478,16 +484,22 @@ Desde el panel principal de Jenkins:
 
 6. En **Branches to build**, indicar la rama sobre la cual se ejecutará Jenkins.
 
-Durante el desarrollo y prueba del pipeline se utilizó:
+Durante el desarrollo y prueba del pipeline se puede indicar una rama puntual, por ejemplo:
 
 ```text
-*/Feature/Jenkins
+*/feature/mi-rama
 ```
 
 Una vez validado y mergeado el `Jenkinsfile`, el job puede configurarse para trabajar sobre:
 
 ```text
 */dev
+```
+
+Para desplegar PROD local desde Jenkins, la rama que corresponde es:
+
+```text
+*/main
 ```
 
 En **Script Path** indicar:
@@ -517,10 +529,10 @@ Desde el panel principal de Jenkins:
    ```
 
 6. Si el repositorio es privado, configurar credenciales de GitHub en Jenkins y seleccionarlas en **Credentials**.
-7. En **Behaviors**, dejar habilitado el descubrimiento de ramas. Para este proyecto conviene que Jenkins pueda descubrir al menos:
-   - `Feature/Jenkins`, durante la validación del pipeline.
-   - `dev`, para integración y deploy.
-   - `main`, si se decide agregar deploy productivo más adelante.
+7. En **Behaviors**, dejar habilitado el descubrimiento de ramas. Para este proyecto conviene que Jenkins pueda descubrir:
+   - `feature/*`, `fix/*` y otras ramas de trabajo, para CI sin deploy.
+   - `dev`, para CI y deploy DEV.
+   - `main`, para CI y deploy PROD local.
 8. En **Build Configuration**, indicar:
 
    ```text
