@@ -9,3 +9,4 @@ HELP.md
 !.env.example
 !.env.dev.example
 !.env.prod.example
+src/test

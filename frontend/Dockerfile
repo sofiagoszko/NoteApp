@@ -5,7 +5,8 @@ RUN chown node:node /app
 USER node
 
 COPY --chown=node:node package*.json ./
-RUN npm ci --silent
+RUN --mount=type=cache,target=/home/node/.npm,uid=1000,gid=1000 \
+    npm ci --silent --prefer-offline --no-audit --no-fund
 
 COPY --chown=node:node . .
 
