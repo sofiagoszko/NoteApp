@@ -61,6 +61,21 @@ In Docker the frontend is nginx serving the built SPA and proxying `/api/` → `
 traffic is same-origin and CORS doesn't apply; nginx also sets `X-Real-IP` (what the rate limiter reads)
 and a strict CSP.
 
+Both Dockerfiles are multi-stage, run as non-root users, and keep dependencies out of the image layers.
+The frontend installs in its own layer (`package*.json` → `npm ci`) before copying the source. The
+backend has no separate dependency step: with the cache mount it would only add time. Dependency
+downloads use BuildKit cache mounts (`RUN --mount=type=cache` on `/home/spring/.m2` and `/home/node/.npm`),
+so builds need BuildKit (always used by `docker compose` v2). Those caches live in the host's
+builder, and `docker builder prune` wipes them. The mount `uid`/`gid` must match the build user:
+`spring` is pinned to 1001, `node` is 1000.
+
+The backend build uses the `maven` image's `mvn` rather than `mvnw`, and compiles with
+`-Dmaven.test.skip=true` because Jenkins already ran the tests. It copies `application.properties.example`
+→ `application.properties`, so runtime config comes from the env file. The jar is unpacked with
+`-Djarmode=tools extract --layers` and started via `JarLauncher`, so a code-only change rewrites just
+the `application/` layer. The `.dockerignore` files exclude tests, docs and the Docker files, so editing
+them doesn't bust the build cache.
+
 ### CI/CD (Jenkins)
 Root `Jenkinsfile` is a declarative pipeline on a **Windows** agent with Git/Docker/Java/Node on PATH
 (all steps are `bat`/`powershell`), deploying to the same host it builds on. It runs **validation on
@@ -165,10 +180,7 @@ All require `Authorization: Bearer <token>` except `POST /api/users/{login,regis
 
 ## History note
 
-The `Merge branch 'dev' into feature/jwt` (4dc4850) brought in a colleague's test suite that had been
-written against the pre-JWT `X-User-Id` API, and botched the `NoteController.java` conflict (left it
-non-compiling). Resolved on 2026-09-02: `NoteController` restored to the clean `@PreAuthorize` +
-`getNoteForUser` version, and the colleague's `controllers/*` + `integration/*` tests ported to JWT
-(`UserService.authenticate` now returns `Optional<User>`; there is no `isAdmin`/`authenticateUser`).
-If an incremental `./mvnw compile` ever looks suspicious, run `./mvnw clean` — stale classes in
-`target/` can mask a broken tree.
+Before JWT, the API identified users with an `X-User-Id` header. Code or tests on older branches that
+use that header, `UserService.isAdmin` or `authenticateUser` are pre-JWT and need porting (merge
+4dc4850 broke `NoteController` this way; fixed 2026-09-02). Today `UserService.authenticate` returns
+`Optional<User>`.
