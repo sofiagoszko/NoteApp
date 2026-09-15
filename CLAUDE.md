@@ -92,14 +92,18 @@ every branch**, then deploy stages gated by `when { branch }`:
 
 1. `Checkout`
 2. `Backend Test` — `backend/ mvnw.cmd test`, publishes `backend/target/surefire-reports/*.xml` via `junit`
-3. `Frontend Validation` — `npm ci` → `npm run test:ci` → `npm run build`, skipped on `dev`/`main` because
-   `Docker Build` compiles the frontend again inside the image. Most of this stage's time is cold disk reads of
+3. `Frontend Validation` — `npm ci` → `npm run test:ci` on every branch, then `npm run build` only on
+   branches other than `dev`/`main` (there `Docker Build` compiles the frontend inside the image instead). Most of this stage's time is cold disk reads of
    the freshly installed `node_modules` (jsdom startup), not the tests; Vitest worker count doesn't change it.
 4. `Configurar entorno Docker` (`dev`/`main` only) — writes `backend/.env.dev` or `backend/.env.prod`
    from three per-environment `Secret text` credentials (`noteapp-{dev,prod}-{jwt-secret,admin-password,mysql-root-password}`)
    plus branch-derived DB name/ports/CORS origin, so every later compose call resolves.
 5. `Docker Build` → `Stop Previous Version` (`down`, **no `-v`**, so MySQL data survives) → `Deploy`
    (`up --no-build -d`) → `Health Check`, each duplicated as a `DEV` (branch `dev`) and `PROD` (branch `main`) variant.
+6. `GitHub Release PROD` (`main` only, after the PROD health check) — via the GitHub REST API (`Secret text`
+   credential `github-release-token`, fine-grained, Contents: write) creates a Release + tag on the deployed
+   commit, bumping the patch of the latest Release (`v1.0.0` → `v1.0.1`) with auto-generated notes. Skips if the
+   commit is already the latest Release. Minor/major bumps are done by hand in GitHub; the pipeline continues from there.
 
 Health checks poll `docker inspect` for the `db` container's `healthy` state, then the backend's
 `/actuator/health` and the frontend root, dumping `docker compose logs --tail=100` before throwing.
