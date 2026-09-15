@@ -40,9 +40,13 @@ pipeline {
                         call npm.cmd ci
                         if errorlevel 1 exit /b %errorlevel%
                         call npm.cmd run test:ci
-                        if errorlevel 1 exit /b %errorlevel%
-                        call npm.cmd run build
                     '''
+                    script {
+                        // En dev/main el build se valida en Docker Build (el Dockerfile corre npm run build).
+                        if (!['dev', 'main'].contains(env.BRANCH_NAME)) {
+                            bat 'call npm.cmd run build'
+                        }
+                    }
                 }
             }
         }
