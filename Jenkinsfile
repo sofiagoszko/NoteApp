@@ -296,6 +296,48 @@ pipeline {
                 '''
             }
         }
+
+        stage('GitHub Release PROD') {
+            when {
+                branch 'main'
+            }
+            steps {
+                // Publica un Release (y su tag) sobre el commit desplegado, subiendo el patch del último Release.
+                withCredentials([string(credentialsId: 'github-release-token', variable: 'GH_TOKEN')]) {
+                    powershell '''
+                        $ErrorActionPreference = 'Stop'
+                        $repo = 'sofiagoszko/NoteApp'
+                        $headers = @{
+                            Authorization          = "Bearer $env:GH_TOKEN"
+                            Accept                 = 'application/vnd.github+json'
+                            'X-GitHub-Api-Version' = '2022-11-28'
+                        }
+                        $sha = (git rev-parse HEAD).Trim()
+
+                        $latest = (Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/releases/latest").tag_name
+                        $latestSha = (Invoke-RestMethod -Headers $headers -Uri "https://api.github.com/repos/$repo/commits/$latest").sha
+                        if ($latestSha -eq $sha) {
+                            Write-Host "El commit $sha ya está publicado como $latest. No se crea un Release nuevo."
+                            return
+                        }
+
+                        if ($latest -notmatch '^v(\\d+)\\.(\\d+)\\.(\\d+)$') { throw "El último Release ($latest) no tiene formato vX.Y.Z." }
+                        $next = "v$($Matches[1]).$($Matches[2]).$([int]$Matches[3] + 1)"
+
+                        $body = @{
+                            tag_name               = $next
+                            target_commitish       = $sha
+                            name                   = "NoteApp $next"
+                            generate_release_notes = $true
+                            make_latest            = 'true'
+                        } | ConvertTo-Json
+
+                        $release = Invoke-RestMethod -Method Post -Headers $headers -ContentType 'application/json' -Body $body -Uri "https://api.github.com/repos/$repo/releases"
+                        Write-Host "Release $next publicado: $($release.html_url)"
+                    '''
+                }
+            }
+        }
     }
 
     post {
