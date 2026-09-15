@@ -97,7 +97,8 @@ every branch**, then deploy stages gated by `when { branch }`:
    the freshly installed `node_modules` (jsdom startup), not the tests; Vitest worker count doesn't change it.
    Vitest 4 gives each fork a hard-coded 60s to start, so on a new/cold workspace the forks can fail with
    `Timeout waiting for worker to respond` ("no tests"); the stage pre-imports `jsdom`/`vitest`/`@testing-library/react`
-   in one `node` process first to warm the disk cache. Keep that step if you touch the stage.
+   in one `node` process first to warm the disk cache. Keep that step if you touch the stage. For the same
+   reason `vite.config.ts` sets `testTimeout: 60000` (per-keystroke `userEvent.type` tests exceed the 5s default there).
 4. `Configurar entorno Docker` (`dev`/`main` only) — writes `backend/.env.dev` or `backend/.env.prod`
    from three per-environment `Secret text` credentials (`noteapp-{dev,prod}-{jwt-secret,admin-password,mysql-root-password}`)
    plus branch-derived DB name/ports/CORS origin, so every later compose call resolves.
