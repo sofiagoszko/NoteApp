@@ -41,7 +41,7 @@ frontend/
 | React Router DOM | 7.14.1 |
 | React Hot Toast | 2.6.0 |
 | Lucide React | 1.8.0 |
-| Node.js (runtime/build) | 20.x |
+| Node.js (runtime/build) | 22.x (≥ 22.13) |
 
 
 ## Cómo levantarlo

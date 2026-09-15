@@ -10,7 +10,7 @@ Se necesitan tener las siguientes herramientas con sus versiones mínimas:
 |-------------|---------------|---------------|
 | Java (JDK)  | 21            | `java -version` |
 | Maven       | 3.9           | `mvn -version` |
-| Node.js     | 20.x          | `node --version` |
+| Node.js     | 22.13          | `node --version` |
 | npm         | 10.x          | `npm -version` |
 | MySQL       | 8.0           | `mysql --version` |
  
@@ -361,6 +361,7 @@ El pipeline actual realiza estas validaciones y acciones:
    ```
 
    El script `test:ci` ejecuta `vitest run`.
+   En `dev` y `main` se omite `npm run build`, porque la etapa **Docker Build** vuelve a compilar el frontend dentro de la imagen.
 
 4. **Configurar entorno Docker**: solo en `dev` y `main`, genera el archivo de entorno del ambiente:
    - `dev` -> `backend/.env.dev`

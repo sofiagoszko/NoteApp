@@ -13,7 +13,7 @@ stack and `main` → the PROD stack; any other branch only runs the validation s
 
 ## Commands
 
-Toolchain (see README for exact dev versions): JDK 21, Maven 3.9+ (wrapper provided), Node 20+/npm 10+, MySQL 8 (only for non-test runs).
+Toolchain (see README for exact dev versions): JDK 21, Maven 3.9+ (wrapper provided), Node 22.13+ (the dev machine and Jenkins agent stay on 22.13.0 — check `engines` before bumping frontend deps)/npm 10+, MySQL 8 (only for non-test runs).
 
 ### Backend (`backend/`, run via the Maven wrapper)
 - Run the API: `./mvnw spring-boot:run` (serves `http://localhost:8080`)
@@ -61,6 +61,15 @@ In Docker the frontend is nginx serving the built SPA and proxying `/api/` → `
 traffic is same-origin and CORS doesn't apply; nginx also sets `X-Real-IP` (what the rate limiter reads)
 and a strict CSP.
 
+`frontend/nginx.conf` details that are easy to break: nginx listens on `5173` inside the container (the
+host port is mapped from `FRONTEND_HOST_PORT`). The upstream is a variable (`set $backend_upstream`) used
+with Docker's DNS `resolver 127.0.0.11`, so nginx still starts when `backend` is down and finds the
+backend again after that container is recreated. Don't inline it as a literal `proxy_pass http://backend:8080`.
+Security headers are repeated in both `location /` and `location /assets/`, because nginx doesn't inherit
+`add_header` into a location that sets its own. Add any new header to both. The CSP lives in `$csp`
+(`connect-src 'self'`, fonts only from Google Fonts), so a new external script/font/image/API origin
+must be allowed there or the browser blocks it silently.
+
 Both Dockerfiles are multi-stage, run as non-root users, and keep dependencies out of the image layers.
 The frontend installs in its own layer (`package*.json` → `npm ci`) before copying the source. The
 backend has no separate dependency step: with the cache mount it would only add time. Dependency
@@ -83,7 +92,9 @@ every branch**, then deploy stages gated by `when { branch }`:
 
 1. `Checkout`
 2. `Backend Test` — `backend/ mvnw.cmd test`, publishes `backend/target/surefire-reports/*.xml` via `junit`
-3. `Frontend Validation` — `npm ci` → `npm run test:ci` → `npm run build` (each step's errorlevel checked)
+3. `Frontend Validation` — `npm ci` → `npm run test:ci` → `npm run build`, skipped on `dev`/`main` because
+   `Docker Build` compiles the frontend again inside the image. Most of this stage's time is cold disk reads of
+   the freshly installed `node_modules` (jsdom startup), not the tests; Vitest worker count doesn't change it.
 4. `Configurar entorno Docker` (`dev`/`main` only) — writes `backend/.env.dev` or `backend/.env.prod`
    from three per-environment `Secret text` credentials (`noteapp-{dev,prod}-{jwt-secret,admin-password,mysql-root-password}`)
    plus branch-derived DB name/ports/CORS origin, so every later compose call resolves.
