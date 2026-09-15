@@ -39,6 +39,9 @@ pipeline {
                     bat '''@echo off
                         call npm.cmd ci
                         if errorlevel 1 exit /b %errorlevel%
+                        rem Precarga jsdom/vitest una vez: con node_modules en frio los forks de Vitest superan su timeout fijo de 60s al arrancar.
+                        node --input-type=module -e "await import('jsdom'); await import('vitest'); await import('@testing-library/react')"
+                        if errorlevel 1 exit /b %errorlevel%
                         call npm.cmd run test:ci
                     '''
                     script {
